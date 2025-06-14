@@ -1,5 +1,5 @@
 # ⚡💧 AlertShip
-
+![logo](https://github.com/user-attachments/assets/8ff4873b-d2ac-4f5e-aa1a-bedf74b4256e)
 **Track & Report Utility Outages in Your Area.**
 
 AlertShip is a web platform that allows users to **report**, **view**, and **track utility outages** such as electricity cuts, water supply disruptions, road blockages, and air pollution levels — all on an interactive map. It helps citizens stay informed and prepare ahead, while fostering community-driven transparency.
