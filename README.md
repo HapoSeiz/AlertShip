@@ -2,14 +2,14 @@
 ![logo](https://github.com/user-attachments/assets/8ff4873b-d2ac-4f5e-aa1a-bedf74b4256e)
 **Track & Report Utility Outages in Your Area.**
 
-AlertShip is a web platform that allows users to **report**, **view**, and **track utility outages** such as electricity cuts, water supply disruptions, road blockages, and air pollution levels — all on an interactive map. It helps citizens stay informed and prepare ahead, while fostering community-driven transparency.
+AlertShip is a web platform that allows users to **report**, **view**, and **track utility outages** such as electricity cuts and water supply disruptions. It helps citizens stay informed and prepare ahead, while fostering community-driven transparency.
 
 ---
 
 ## 🚀 Features
 
 - 📍 **Interactive Map** with real-time outage reports  
-- 🛠️ **User-submitted Outages** for electricity, water, and more  
+- 🛠️ **User-submitted Outages** for electricity and water 
 - 🔔 **Outage Prediction**: See estimated fix times based on similar past events  
 - 📊 **Area-wise Insights**: See most affected districts and utilities  
 - 📱 **Mobile-friendly UI** with dark mode support  
@@ -22,10 +22,10 @@ AlertShip is a web platform that allows users to **report**, **view**, and **tra
 | Category       | Technology |
 |----------------|------------|
 | Frontend       | HTML, CSS, JavaScript / React / Figma (UI design) |
-| Map Integration| Leaflet.js / Mapbox GL JS |
-| Backend        | Node.js / Express / Firebase (or Python Flask)/ Next.js |
-| Database       | Firebase / MongoDB |
-| Hosting        | Vercel / Netlify / Firebase Hosting |
+| Map Integration| Mapbox GL JS |
+| Backend        | Node.js / Express / Firebase / Next.js |
+| Database       | Firebase |
+| Hosting        | Vercel |
 
 ---
 
