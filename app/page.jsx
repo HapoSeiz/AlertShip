@@ -2138,15 +2138,37 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Map View */}
-            {viewMode === "map" && (
-              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                <OutageMap />
+            {/* Map or List View */}
+            {viewMode === "map" ? (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border">
+                <h2 className="text-xl font-semibold text-[#1F2937] mb-6">Outage Map</h2>
+                <div className="bg-gray-100 rounded-lg h-[400px] flex items-center justify-center">
+                  <div className="text-center">
+                    <Map className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600">Interactive map showing outage locations in {location}</p>
+                    <p className="text-sm text-gray-500 mt-2">Zoom in to see detailed information</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                    <span className="text-sm">Electricity Outage</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
+                    <span className="text-sm">Partial Outage</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span className="text-sm">Water Issue</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-sm">Resolved</span>
+                  </div>
+                </div>
               </div>
-            )}
-
-            {/* List View */}
-            {viewMode === "list" && (
+            ) : (
               <>
                 {/* Legend */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border mb-6">
@@ -2171,92 +2193,36 @@ export default function LandingPage() {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
                   <h2 className="text-xl font-semibold text-[#1F2937] mb-6">Recent Reports</h2>
                   <div className="space-y-4">
-                    {/* Report Item */}
-                    <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-[#1F2937]">Power Outage - Sector 15</h3>
-                          <span className="text-sm text-gray-500">15 min ago</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Complete power failure reported in residential area. Maintenance team dispatched.
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">High Priority</span>
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                            Official
-                          </span>
-                          <span className="text-xs text-gray-500">Reported by 12 users</span>
-                        </div>
-                        <div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-3 text-xs border-red-300 text-red-700 hover:bg-red-100"
-                            onClick={() =>
-                              setExpandedOutageId(expandedOutageId === "power-outage-1" ? null : "power-outage-1")
-                            }
-                          >
-                            {expandedOutageId === "power-outage-1" ? "Hide Details" : "View Details"}
-                          </Button>
-
-                          {expandedOutageId === "power-outage-1" && (
-                            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                              <h4 className="font-medium text-red-800 mb-2">Outage Details</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Outage ID:</span>
-                                  <span className="font-medium">OUT-2023-06-15-001</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Affected Streets:</span>
-                                  <span className="font-medium">Main St, Park Ave, Oak Ln</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Estimated Households:</span>
-                                  <span className="font-medium">~150 homes</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Cause:</span>
-                                  <span className="font-medium">Transformer failure</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Crew Status:</span>
-                                  <span className="font-medium">On-site working</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Est. Restoration:</span>
-                                  <span className="font-medium">2-4 hours</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Report Content */}
-                    {outages && outages.length > 0 ? (
+                    {outages.length > 0 ? (
                       outages.map((report) => (
-                        <div key={report.id} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                            <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
+                        <div
+                          key={report.id}
+                          className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
+                        >
+                          {/* Icon bubble based on type */}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            report.type === "electricity" ? "bg-red-100" : "bg-blue-100"
+                          }`}>
+                            {report.type === "electricity" ? (
+                              <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
                           </div>
+
+                          {/* Report Content */}
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <h3 className="font-medium text-[#1F2937] capitalize">
@@ -2353,6 +2319,7 @@ export default function LandingPage() {
             )}
           </div>
         </main>
+
 
         {/* Footer */}
         <Footer />
