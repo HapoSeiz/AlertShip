@@ -2065,6 +2065,8 @@ export default function LandingPage() {
               </button>
             </div>
 
+            
+
             {/* Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Electricity Status */}
@@ -2138,37 +2140,15 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Map or List View */}
-            {viewMode === "map" ? (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border">
-                <h2 className="text-xl font-semibold text-[#1F2937] mb-6">Outage Map</h2>
-                <div className="bg-gray-100 rounded-lg h-[400px] flex items-center justify-center">
-                  <div className="text-center">
-                    <Map className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600">Interactive map showing outage locations in {location}</p>
-                    <p className="text-sm text-gray-500 mt-2">Zoom in to see detailed information</p>
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                    <span className="text-sm">Electricity Outage</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                    <span className="text-sm">Partial Outage</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                    <span className="text-sm">Water Issue</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-sm">Resolved</span>
-                  </div>
-                </div>
+            {/* Map View */}
+            {viewMode === "map" && (
+              <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <OutageMap />
               </div>
-            ) : (
+            )}
+
+            {/* List View */}
+            {viewMode === "list" && (
               <>
                 {/* Legend */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border mb-6">
