@@ -46,7 +46,10 @@ export default function HowItWorks() {
 
         {/* CTA Button */}
         <div className="flex flex-col items-center">
-          <Button className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 h-auto rounded-xl sm:rounded-2xl font-semibold mb-3 sm:mb-4">
+          <Button
+            className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 h-auto rounded-xl sm:rounded-2xl font-semibold mb-3 sm:mb-4"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
             Check Now!
           </Button>
 

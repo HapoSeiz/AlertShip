@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { X, Bell, MessageSquare } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { X, Bell, MessageSquare, Shield, Mail, Lock } from "lucide-react"
 
 export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) {
   const [notificationPreferences, setNotificationPreferences] = useState({
@@ -13,40 +14,28 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [errors, setErrors] = useState({})
+  const [showLoginForm, setShowLoginForm] = useState(false)
 
-  // Add WhatsApp OTP verification states
+  // WhatsApp OTP verification states
   const [showWhatsAppOtp, setShowWhatsAppOtp] = useState(false)
   const [whatsappOtp, setWhatsappOtp] = useState("")
   const [generatedWhatsappOtp, setGeneratedWhatsappOtp] = useState("")
-  const [whatsappOtpSent, setWhatsappOtpSent] = useState(false)
-  const [whatsappResendTimer, setWhatsappResendTimer] = useState(0)
+  const [isVerifyingWhatsApp, setIsVerifyingWhatsApp] = useState(false)
+  const [whatsappVerified, setWhatsappVerified] = useState(false)
+  const [resendTimer, setResendTimer] = useState(0)
 
-  // Generate random 6-digit OTP for WhatsApp
-  const generateWhatsAppOtp = () => {
+  if (!isOpen) return null
+
+  // Generate random 6-digit OTP
+  const generateOtp = () => {
     return Math.floor(100000 + Math.random() * 900000).toString()
   }
 
-  // Send WhatsApp OTP (simulated)
-  const sendWhatsAppOtp = async (phoneNumber) => {
-    const newOtp = generateWhatsAppOtp()
-    setGeneratedWhatsappOtp(newOtp)
-
-    // Simulate sending WhatsApp message
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // In real implementation, you would send WhatsApp message here
-    console.log(`WhatsApp OTP sent to ${phoneNumber}: ${newOtp}`)
-    alert(`WhatsApp OTP sent to ${phoneNumber}! (For demo: ${newOtp})`)
-
-    setWhatsappOtpSent(true)
-    startWhatsAppResendTimer()
-  }
-
-  // Start WhatsApp resend timer
-  const startWhatsAppResendTimer = () => {
-    setWhatsappResendTimer(60)
+  // Start resend timer
+  const startResendTimer = () => {
+    setResendTimer(60)
     const timer = setInterval(() => {
-      setWhatsappResendTimer((prev) => {
+      setResendTimer((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
           return 0
@@ -56,88 +45,134 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
     }, 1000)
   }
 
-  const validateWhatsAppOtp = () => {
+  // Send WhatsApp OTP
+  const sendWhatsAppOtp = async () => {
+    const newOtp = generateOtp()
+    setGeneratedWhatsappOtp(newOtp)
+    setIsVerifyingWhatsApp(true)
+
+    try {
+      // Simulate sending WhatsApp OTP
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // In real implementation, you would send WhatsApp OTP here
+      console.log(`WhatsApp OTP sent to ${phoneNumber}: ${newOtp}`)
+      alert(`WhatsApp OTP sent! (For demo: ${newOtp})`)
+
+      setShowWhatsAppOtp(true)
+      startResendTimer()
+    } catch (error) {
+      console.error("Error sending WhatsApp OTP:", error)
+      setErrors({ whatsapp: "Failed to send OTP. Please try again." })
+    } finally {
+      setIsVerifyingWhatsApp(false)
+    }
+  }
+
+  // Verify WhatsApp OTP
+  const verifyWhatsAppOtp = async () => {
     if (!whatsappOtp.trim()) {
       setErrors({ whatsappOtp: "OTP is required" })
-      return false
+      return
     }
     if (whatsappOtp.length !== 6) {
       setErrors({ whatsappOtp: "OTP must be 6 digits" })
-      return false
+      return
     }
     if (whatsappOtp !== generatedWhatsappOtp) {
       setErrors({ whatsappOtp: "Invalid OTP. Please try again." })
-      return false
+      return
     }
-    setErrors({})
-    return true
+
+    setIsVerifyingWhatsApp(true)
+    try {
+      // Simulate verification
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      setWhatsappVerified(true)
+      setShowWhatsAppOtp(false)
+      setErrors({})
+      alert("WhatsApp number verified successfully!")
+    } catch (error) {
+      setErrors({ whatsappOtp: "Verification failed. Please try again." })
+    } finally {
+      setIsVerifyingWhatsApp(false)
+    }
   }
 
-  const handleWhatsAppOtpVerification = async (e) => {
-    e.preventDefault()
-    if (validateWhatsAppOtp()) {
-      setIsSubmitting(true)
-      try {
-        // Simulate WhatsApp number verification
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        console.log("WhatsApp number verified:", phoneNumber)
+  // Resend WhatsApp OTP
+  const resendWhatsAppOtp = async () => {
+    if (resendTimer > 0) return
+    await sendWhatsAppOtp()
+  }
 
-        // Proceed with saving notification preferences
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        console.log("Notification preferences saved:", {
-          browser: notificationPreferences.browser,
-          whatsapp: true,
-          phoneNumber: phoneNumber,
-        })
-        setSubmitSuccess(true)
-      } catch (error) {
-        console.error("Error verifying WhatsApp number:", error)
-        setErrors({ whatsappOtp: "Verification failed. Please try again." })
-      } finally {
-        setIsSubmitting(false)
+  const handlePreferenceChange = (type) => {
+    if (type === "whatsapp" && !notificationPreferences.whatsapp) {
+      // If enabling WhatsApp, check if phone number is provided
+      if (!phoneNumber.trim()) {
+        setErrors({ phone: "Phone number is required for WhatsApp notifications" })
+        return
+      }
+      if (!/^\+?[0-9]{10,15}$/.test(phoneNumber.replace(/\s/g, ""))) {
+        setErrors({ phone: "Please enter a valid phone number" })
+        return
+      }
+
+      // Send OTP for verification
+      sendWhatsAppOtp()
+    }
+
+    setNotificationPreferences((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }))
+
+    // Clear error when selecting an option
+    if (errors.preferences) {
+      setErrors((prev) => ({ ...prev, preferences: null }))
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    // Check if at least one notification method is selected
+    if (!notificationPreferences.browser && !notificationPreferences.whatsapp) {
+      newErrors.preferences = "Please select at least one notification method"
+    }
+
+    // Validate phone number if WhatsApp is selected
+    if (notificationPreferences.whatsapp) {
+      if (!phoneNumber.trim()) {
+        newErrors.phone = "Phone number is required for WhatsApp notifications"
+      } else if (!/^\+?[0-9]{10,15}$/.test(phoneNumber.replace(/\s/g, ""))) {
+        newErrors.phone = "Please enter a valid phone number"
+      } else if (!whatsappVerified) {
+        newErrors.phone = "Please verify your WhatsApp number"
       }
     }
-  }
 
-  const handleResendWhatsAppOtp = async () => {
-    if (whatsappResendTimer > 0) return
-
-    setIsSubmitting(true)
-    try {
-      await sendWhatsAppOtp(phoneNumber)
-    } catch (error) {
-      alert("Failed to resend WhatsApp OTP. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // If WhatsApp is selected, show OTP verification
-    if (notificationPreferences.whatsapp && !showWhatsAppOtp) {
-      setIsSubmitting(true)
-      try {
-        await sendWhatsAppOtp(phoneNumber)
-        setShowWhatsAppOtp(true)
-      } catch (error) {
-        alert("Failed to send WhatsApp OTP. Please try again.")
-      } finally {
-        setIsSubmitting(false)
-      }
+    if (!validateForm()) {
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      // Simulate API call for browser notifications only
+      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500))
       console.log("Notification preferences saved:", {
         browser: notificationPreferences.browser,
-        whatsapp: false,
-        phoneNumber: null,
+        whatsapp: notificationPreferences.whatsapp,
+        phoneNumber: notificationPreferences.whatsapp ? phoneNumber : null,
+        whatsappVerified: whatsappVerified,
       })
       setSubmitSuccess(true)
     } catch (error) {
@@ -147,20 +182,22 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
     }
   }
 
-  const validateForm = () => {
-    if (!phoneNumber.trim() && notificationPreferences.whatsapp) {
-      setErrors({ phone: "Phone number is required for WhatsApp notifications" })
-      return false
-    }
+  const handleClose = () => {
+    onClose()
+    // Reset states
+    setNotificationPreferences({ browser: true, whatsapp: false })
+    setPhoneNumber("")
     setErrors({})
-    return true
+    setSubmitSuccess(false)
+    setShowWhatsAppOtp(false)
+    setWhatsappOtp("")
+    setWhatsappVerified(false)
+    setResendTimer(0)
+    setShowLoginForm(false)
   }
 
-  const handlePreferenceChange = (preference) => {
-    setNotificationPreferences((prev) => ({
-      ...prev,
-      [preference]: !prev[preference],
-    }))
+  const handleBackToNotification = () => {
+    setShowLoginForm(false)
   }
 
   // If user is not logged in, show login prompt
@@ -171,7 +208,7 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-[#1F2937]">Subscribe to Alerts</h2>
-              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -181,18 +218,188 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
             </div>
 
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={onClose} className="border-gray-300">
+              <Button variant="outline" onClick={handleClose} className="border-gray-300">
                 Cancel
               </Button>
+              <Button onClick={() => setShowLoginForm(true)} className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white">
+                Log In
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If showing login form within the notification modal
+  if (showLoginForm) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-[#1F2937]">Log In</h2>
+              <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form className="space-y-4">
+              {/* Email Field */}
+              <div>
+                <label htmlFor="login-email" className="block text-sm font-medium text-[#1F2937] mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    className="pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="login-password" className="block text-sm font-medium text-[#1F2937] mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="Enter your password"
+                    className="pl-10 pr-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Forgot Password */}
+              <div className="text-right">
+                <button type="button" className="text-sm text-[#4F46E5] hover:underline">
+                  Forgot Password?
+                </button>
+              </div>
+
+              {/* Submit Button */}
               <Button
+                type="button"
                 onClick={() => {
-                  onClose()
-                  onOpenLogin()
+                  handleClose()
+                  onOpenLogin() // Still use the parent's login handler for actual login
                 }}
-                className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
+                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6"
               >
                 Log In
               </Button>
+            </form>
+
+            {/* Back Button */}
+            <div className="text-center mt-6">
+              <button onClick={handleBackToNotification} className="text-sm text-gray-600 hover:text-gray-800">
+                ← Back to Notification Options
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // WhatsApp OTP Verification Modal
+  if (showWhatsAppOtp) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-[#1F2937]">Verify WhatsApp Number</h2>
+              <button
+                onClick={() => setShowWhatsAppOtp(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                disabled={isVerifyingWhatsApp}
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <MessageSquare className="w-5 h-5 text-green-600 mt-0.5" />
+                <div>
+                  <p className="text-sm text-green-800">
+                    We've sent a 6-digit verification code to <span className="font-semibold">{phoneNumber}</span> via
+                    WhatsApp.
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">Please check your WhatsApp and enter the code below.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="whatsapp-otp" className="block text-sm font-medium text-[#1F2937] mb-2">
+                  Verification Code
+                </label>
+                <Input
+                  id="whatsapp-otp"
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={whatsappOtp}
+                  onChange={(e) => {
+                    setWhatsappOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    if (errors.whatsappOtp) {
+                      setErrors((prev) => ({ ...prev, whatsappOtp: null }))
+                    }
+                  }}
+                  disabled={isVerifyingWhatsApp}
+                  className={`h-12 text-center text-lg tracking-widest border-2 ${
+                    errors.whatsappOtp ? "border-red-500" : "border-gray-300"
+                  } focus:border-[#4F46E5] focus:ring-0 outline-none`}
+                  maxLength={6}
+                />
+                {errors.whatsappOtp && <p className="text-red-500 text-sm mt-1">{errors.whatsappOtp}</p>}
+              </div>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">Didn't receive the code?</p>
+                <button
+                  type="button"
+                  onClick={resendWhatsAppOtp}
+                  disabled={isVerifyingWhatsApp || resendTimer > 0}
+                  className="text-sm text-[#4F46E5] font-semibold hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Code"}
+                </button>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowWhatsAppOtp(false)}
+                  className="border-gray-300"
+                  disabled={isVerifyingWhatsApp}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={verifyWhatsAppOtp}
+                  disabled={isVerifyingWhatsApp || whatsappOtp.length !== 6}
+                  className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
+                >
+                  {isVerifyingWhatsApp ? (
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Verifying...
+                    </div>
+                  ) : (
+                    "Verify"
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -214,94 +421,10 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
             <p className="text-gray-600 mb-6">
               You will now receive alerts about outages in your area based on your preferences.
             </p>
-            <Button onClick={onClose} className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white">
+            <Button onClick={handleClose} className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white">
               Close
             </Button>
           </div>
-        ) : // WhatsApp OTP Verification
-        showWhatsAppOtp ? (
-          <form onSubmit={handleWhatsAppOtpVerification}>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-[#1F2937]">Verify WhatsApp Number</h2>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <MessageSquare className="w-5 h-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-green-800">
-                      We've sent a 6-digit verification code to <span className="font-semibold">{phoneNumber}</span> via
-                      WhatsApp
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">Please check your WhatsApp and enter the code below.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Verification Code</label>
-                  <input
-                    type="text"
-                    placeholder="Enter 6-digit code"
-                    value={whatsappOtp}
-                    onChange={(e) => setWhatsappOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className={`w-full p-3 text-center text-lg tracking-widest border rounded-md ${
-                      errors.whatsappOtp ? "border-red-500" : "border-gray-300"
-                    }`}
-                    maxLength={6}
-                  />
-                  {errors.whatsappOtp && <p className="text-red-500 text-xs mt-1">{errors.whatsappOtp}</p>}
-                </div>
-
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">Didn't receive the code?</p>
-                  <button
-                    type="button"
-                    onClick={handleResendWhatsAppOtp}
-                    disabled={isSubmitting || whatsappResendTimer > 0}
-                    className="text-sm text-[#4F46E5] font-semibold hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {whatsappResendTimer > 0 ? `Resend in ${whatsappResendTimer}s` : "Resend Code"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowWhatsAppOtp(false)}
-                  className="border-gray-300"
-                  disabled={isSubmitting}
-                >
-                  Back
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
-                  disabled={isSubmitting || whatsappOtp.length !== 6}
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Verifying...
-                    </div>
-                  ) : (
-                    "Verify & Subscribe"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </form>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="p-6">
@@ -309,7 +432,7 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
                 <h2 className="text-2xl font-bold text-[#1F2937]">Subscribe to Alerts</h2>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-gray-500" />
@@ -372,21 +495,47 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
                     </div>
                   </div>
 
-                  {notificationPreferences.whatsapp && (
-                    <div className="mt-3 pl-11">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                  <div className="mt-3 pl-11">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                    <div className="relative">
                       <input
                         type="tel"
                         placeholder="e.g. +91 9876543210"
                         value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className={`w-full p-2 border rounded-md ${
+                        onChange={(e) => {
+                          setPhoneNumber(e.target.value)
+                          if (errors.phone) {
+                            setErrors((prev) => ({ ...prev, phone: null }))
+                          }
+                        }}
+                        className={`w-full p-2 pr-8 border rounded-md ${
                           errors.phone ? "border-red-500" : "border-gray-300"
                         }`}
                       />
-                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                      {whatsappVerified && (
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                          <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                            <svg
+                              className="w-3 h-3 text-green-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                    {whatsappVerified && (
+                      <p className="text-green-600 text-xs mt-1 flex items-center">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Verified
+                      </p>
+                    )}
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                    {errors.whatsapp && <p className="text-red-500 text-xs mt-1">{errors.whatsapp}</p>}
+                  </div>
                 </div>
               </div>
 
@@ -396,13 +545,17 @@ export function NotificationModal({ isOpen, onClose, isLoggedIn, onOpenLogin }) 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="border-gray-300"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isVerifyingWhatsApp}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
+                  disabled={isSubmitting || isVerifyingWhatsApp}
+                >
                   {isSubmitting ? (
                     <div className="flex items-center">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />

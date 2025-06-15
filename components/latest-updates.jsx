@@ -10,6 +10,7 @@ const outageData = [
     city: "Hyderabad",
     type: "electricity",
     description: "Electricity outage due to regular maintenance between 13:00 and 14:00 hrs.",
+    source: "official",
   },
   {
     id: 2,
@@ -17,6 +18,7 @@ const outageData = [
     city: "Delhi",
     type: "water",
     description: "Water line damaged due to road construction.",
+    source: "crowdsourced",
   },
   {
     id: 3,
@@ -24,6 +26,7 @@ const outageData = [
     city: "Gwalior",
     type: "water",
     description: "Water outage due to damage of pipelines during maintenance.",
+    source: "official",
   },
   {
     id: 4,
@@ -31,6 +34,7 @@ const outageData = [
     city: "Bengaluru",
     type: "electricity",
     description: "Electricity lines damaged due to heavy rains. ETA ~ 4 hours.",
+    source: "crowdsourced",
   },
 ]
 
@@ -125,9 +129,9 @@ export default function LatestUpdates() {
       `}</style>
 
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 float-animation">
           {/* Heading */}
-          <div className="lg:col-span-3 text-center lg:text-left">
+          <div className="lg:col-span-3 text-center lg:text-left flex flex-col justify-center">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-[#1F2937]">
               Latest
               <br />
@@ -157,6 +161,17 @@ export default function LatestUpdates() {
                           {outage.location}, <br />
                           {outage.city}
                         </h3>
+                        <div className="mb-2">
+                          <span
+                            className={`text-xs px-2 py-1 rounded font-medium ${
+                              outage.source === "official"
+                                ? "bg-white/30 text-white border border-white/40"
+                                : "bg-white/20 text-white border border-white/30"
+                            }`}
+                          >
+                            {outage.source === "official" ? "Official" : "Crowdsourced"}
+                          </span>
+                        </div>
                       </div>
                       <div
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center icon-hover ${

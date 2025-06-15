@@ -4,6 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Eye, EyeOff, Mail, Lock, User, Shield, AlertTriangle } from "lucide-react"
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { app } from '@/lib/firebase';
 
 // Google Icon Component
 const GoogleIcon = ({ className = "w-5 h-5" }) => (
@@ -232,19 +234,26 @@ export function AuthModals({
   const handleGoogleAuth = async (isSignUp = false) => {
     setIsLoading(true)
     try {
-      // Simulate Google OAuth flow
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      const userData = {
-        name: "John Doe",
-        email: "john.doe@gmail.com",
-        id: "google_123456",
+      const auth = getAuth(app)
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      const idToken = await result.user.getIdToken()
+      // Send the ID token to your backend
+      const res = await fetch('/api/auth-google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        onLogin({ email: result.user.email, id: result.user.uid, name: result.user.displayName })
+        resetForms()
+        alert('Google signup successful!')
+      } else {
+        alert(data.error || 'Google signup failed')
       }
-
-      onLogin(userData)
-      resetForms()
     } catch (error) {
-      alert("Google authentication failed. Please try again.")
+      alert('Google signup failed')
     } finally {
       setIsLoading(false)
     }
@@ -255,11 +264,25 @@ export function AuthModals({
     if (validateSignUp()) {
       setIsLoading(true)
       try {
-        // Send OTP for email verification
-        await sendOtp(signUpData.email)
-        setShowOtpVerification(true)
+        // Call backend to create user
+        const res = await fetch('/api/auth-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: signUpData.email,
+            password: signUpData.password,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          onLogin({ email: signUpData.email, id: data.user.uid, name: signUpData.name })
+          resetForms()
+          alert('Signup successful!')
+        } else {
+          alert(data.error || 'Signup failed')
+        }
       } catch (error) {
-        alert("Failed to send OTP. Please try again.")
+        alert('Signup failed')
       } finally {
         setIsLoading(false)
       }
@@ -541,7 +564,7 @@ export function AuthModals({
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Sending OTP...
+                    Signing up...
                   </div>
                 ) : (
                   "Continue"
