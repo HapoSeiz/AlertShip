@@ -13,6 +13,7 @@ import Footer from "@/components/footer"
 import { AuthModals } from "@/components/auth-modals"
 import UserDashboard from "@/components/user-dashboard"
 import { NotificationModal } from "@/components/notification-modal"
+import { fetchOutageReportsByCity } from "@/lib/firestoreHelpers"
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from "date-fns"
 import dynamic from "next/dynamic";
 
@@ -25,6 +26,9 @@ const useSearchBoxCore = dynamic(
   { ssr: false }
 );
 
+const OutageMap = dynamic(() => import("@/components/outage-map"), {
+  ssr: false,
+});
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -62,6 +66,8 @@ export default function LandingPage() {
   const [loadingOutages, setLoadingOutages] = useState(false)
 
   const [isLoadingLocation, setIsLoadingLocation] = useState(false)
+
+  const [currentCity, setCurrentCity] = useState("");
 
   const { retrieve } = useSearchBoxCore({
     accessToken: "pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA",
@@ -219,15 +225,12 @@ export default function LandingPage() {
     setIsSignUpOpen(true)
   }
 
-  const handleLocationSubmit = () => {
-    try {
-      if (!location || !location.trim()) {
-        // Optional: Show error message to user
-        console.log("Please enter a location");
-        return;
-      }
+  const handleLocationSubmit = async () => {
+    if (!location.trim()) return;
 
-      // Reset all view states
+    try {
+      setLoadingOutages(true);
+      // Reset all view states first
       setShowDashboard(false);
       setShowReportForm(false);
       setShowUpcomingOutages(false);
@@ -239,11 +242,17 @@ export default function LandingPage() {
       setShowOutagePage(true);
       setCurrentPage("outages");
       
-      // Optional: Scroll to top
+      // Fetch outages for the selected city
+      const reports = await fetchOutageReportsByCity(location.trim());
+      setOutages(reports);
+      
+      // Scroll to top
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (error) {
-      console.error("Error handling location submit:", error);
-      // Optional: Show error message to user
+    } catch (err) {
+      console.error("Error fetching outages:", err);
+      setOutages([]);
+    } finally {
+      setLoadingOutages(false);
     }
   };
 
@@ -2184,228 +2193,133 @@ export default function LandingPage() {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border">
                   <h2 className="text-xl font-semibold text-[#1F2937] mb-6">Recent Reports</h2>
                   <div className="space-y-4">
-                    {/* Report Item */}
-                    <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                        <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-[#1F2937]">Power Outage - Sector 15</h3>
-                          <span className="text-sm text-gray-500">15 min ago</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Complete power failure reported in residential area. Maintenance team dispatched.
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">High Priority</span>
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                            Official
-                          </span>
-                          <span className="text-xs text-gray-500">Reported by 12 users</span>
-                        </div>
-                        <div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-3 text-xs border-red-300 text-red-700 hover:bg-red-100"
-                            onClick={() =>
-                              setExpandedOutageId(expandedOutageId === "power-outage-1" ? null : "power-outage-1")
-                            }
-                          >
-                            {expandedOutageId === "power-outage-1" ? "Hide Details" : "View Details"}
-                          </Button>
+                    {outages.length > 0 ? (
+                      outages.map((report) => (
+                        <div
+                          key={report.id}
+                          className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg"
+                        >
+                          {/* Icon bubble based on type */}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            report.type === "electricity" ? "bg-red-100" : "bg-blue-100"
+                          }`}>
+                            {report.type === "electricity" ? (
+                              <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
+                          </div>
 
-                          {expandedOutageId === "power-outage-1" && (
-                            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                              <h4 className="font-medium text-red-800 mb-2">Outage Details</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Outage ID:</span>
-                                  <span className="font-medium">OUT-2023-06-15-001</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Affected Streets:</span>
-                                  <span className="font-medium">Main St, Park Ave, Oak Ln</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Estimated Households:</span>
-                                  <span className="font-medium">~150 homes</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Cause:</span>
-                                  <span className="font-medium">Transformer failure</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Crew Status:</span>
-                                  <span className="font-medium">On-site working</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Est. Restoration:</span>
-                                  <span className="font-medium">2-4 hours</span>
-                                </div>
-                              </div>
+                          {/* Report Content */}
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-medium text-[#1F2937] capitalize">
+                                {report.type === "electricity" ? "Electricity Issue" : "Water Issue"} - {report.locality}
+                              </h3>
+                              <span className="text-sm text-gray-500">Just now</span>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                            <p className="text-sm text-gray-600 mt-1">{report.description}</p>
 
-                    {/* Report Item */}
-                    <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-[#1F2937]">Low Water Pressure - Phase 2</h3>
-                          <span className="text-sm text-gray-500">1 hour ago</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Residents reporting reduced water pressure during morning hours.
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-                            Medium Priority
-                          </span>
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
-                            Crowdsourced
-                          </span>
-                          <span className="text-xs text-gray-500">Reported by 5 users</span>
-                        </div>
-                        <div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-3 text-xs border-blue-300 text-blue-700 hover:bg-blue-100"
-                            onClick={() =>
-                              setExpandedOutageId(expandedOutageId === "water-pressure-1" ? null : "water-pressure-1")
-                            }
-                          >
-                            {expandedOutageId === "water-pressure-1" ? "Hide Details" : "View Details"}
-                          </Button>
-
-                          {expandedOutageId === "water-pressure-1" && (
-                            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                              <h4 className="font-medium text-blue-800 mb-2">Issue Details</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Issue ID:</span>
-                                  <span className="font-medium">WAT-2023-06-15-002</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Affected Areas:</span>
-                                  <span className="font-medium">Phase 2, Blocks D-F</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Estimated Households:</span>
-                                  <span className="font-medium">~80 homes</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Cause:</span>
-                                  <span className="font-medium">Pump maintenance</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Status:</span>
-                                  <span className="font-medium">Under investigation</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Est. Resolution:</span>
-                                  <span className="font-medium">1-2 hours</span>
-                                </div>
-                              </div>
+                            <div className="flex items-center space-x-4 mt-2">
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                report.type === "electricity"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}>
+                                {report.type === "electricity" ? "Power" : "Water"}
+                              </span>
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                Official
+                              </span>
+                              <span className="text-xs text-gray-500">Reported in {report.city}</span>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Report Item */}
-                    <div className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-[#1F2937]">Power Restored - Sector 12</h3>
-                          <span className="text-sm text-gray-500">2 hours ago</span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Electrical service has been fully restored after maintenance work.
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Resolved</span>
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                            Official
-                          </span>
-                          <span className="text-xs text-gray-500">Duration: 3 hours</span>
-                        </div>
-                        <div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-3 text-xs border-green-300 text-green-700 hover:bg-green-100"
-                            onClick={() =>
-                              setExpandedOutageId(expandedOutageId === "power-restored-1" ? null : "power-restored-1")
-                            }
-                          >
-                            {expandedOutageId === "power-restored-1" ? "Hide Details" : "View Details"}
-                          </Button>
+                            {/* Details Toggle */}
+                            <div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={`mt-3 text-xs ${
+                                  report.type === "electricity"
+                                    ? "border-red-300 text-red-700 hover:bg-red-100"
+                                    : "border-blue-300 text-blue-700 hover:bg-blue-100"
+                                }`}
+                                onClick={() =>
+                                  setExpandedOutageId(
+                                    expandedOutageId === report.id ? null : report.id
+                                  )
+                                }
+                              >
+                                {expandedOutageId === report.id ? "Hide Details" : "View Details"}
+                              </Button>
 
-                          {expandedOutageId === "power-restored-1" && (
-                            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                              <h4 className="font-medium text-green-800 mb-2">Resolution Details</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Outage ID:</span>
-                                  <span className="font-medium">OUT-2023-06-15-003</span>
+                              {expandedOutageId === report.id && (
+                                <div
+                                  className={`mt-4 p-4 border rounded-lg ${
+                                    report.type === "electricity"
+                                      ? "bg-red-50 border-red-200"
+                                      : "bg-blue-50 border-blue-200"
+                                  }`}
+                                >
+                                  <h4
+                                    className={`font-medium mb-2 ${
+                                      report.type === "electricity" ? "text-red-800" : "text-blue-800"
+                                    }`}
+                                  >
+                                    {report.type === "electricity" ? "Outage Details" : "Issue Details"}
+                                  </h4>
+                                  <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Location:</span>
+                                      <span className="font-medium">
+                                        {report.locality}, {report.city}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">State:</span>
+                                      <span className="font-medium">{report.state}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Pincode:</span>
+                                      <span className="font-medium">{report.pinCode}</span>
+                                    </div>
+                                    {report.reportedAt && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Reported At:</span>
+                                        <span className="font-medium">
+                                          {new Date(report.reportedAt).toLocaleString()}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Affected Streets:</span>
-                                  <span className="font-medium">Sector 12, All blocks</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Households Affected:</span>
-                                  <span className="font-medium">~200 homes</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Cause:</span>
-                                  <span className="font-medium">Scheduled maintenance</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Restoration Time:</span>
-                                  <span className="font-medium">2:30 PM</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Total Duration:</span>
-                                  <span className="font-medium">3 hours</span>
-                                </div>
-                              </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">No reports found for this city.</p>
+                    )}
                   </div>
                 </div>
               </>
             )}
           </div>
         </main>
+
 
         {/* Footer */}
         <Footer />
@@ -2524,6 +2438,7 @@ export default function LandingPage() {
                     ]}
                   />
                   <Button
+                    type="button" 
                     onClick={handleLocationSubmit}
                     className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-6 py-2 rounded-xl"
                   >
