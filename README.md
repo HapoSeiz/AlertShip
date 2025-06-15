@@ -22,10 +22,10 @@ AlertShip is a web platform that allows users to **report**, **view**, and **tra
 | Category       | Technology |
 |----------------|------------|
 | Frontend       | HTML, CSS, JavaScript / React / Figma (UI design) |
-| Map Integration| Leaflet.js / Mapbox GL JS |
-| Backend        | Node.js / Firebase (or Python Flask) |
-| Database       | Firebase / MongoDB |
-| Hosting        | Vercel / Netlify / Firebase Hosting |
+| Map Integration| Mapbox GL JS |
+| Backend        | Next.js / Firebase |
+| Database       | Firestore |
+| Hosting        | Vercel |
 
 ---
 
