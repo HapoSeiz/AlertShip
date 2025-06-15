@@ -87,10 +87,11 @@ export default function LandingPage() {
   const [reportForm, setReportForm] = useState({
     type: "electricity",
     description: "",
-    address: "",
+    locality: "",
+    city: "",
+    state: "",
+    pinCode: "",
     photo: null,
-    name: "",
-    contact: "",
   })
   const [formErrors, setFormErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -310,32 +311,30 @@ export default function LandingPage() {
 
   const validateForm = () => {
     const errors = {}
-
-    if (!reportForm.description.trim()) {
+    if (!reportForm.description?.trim()) {
       errors.description = "Description is required"
     }
-
-    if (!reportForm.address.trim()) {
-      errors.address = "Address is required"
+    if (!reportForm.locality?.trim()) {
+      errors.locality = "Locality is required"
     }
-
-    if (!reportForm.name.trim()) {
-      errors.name = "Name is required"
+    if (!reportForm.city?.trim()) {
+      errors.city = "City is required"
     }
-
-    if (!reportForm.contact.trim()) {
-      errors.contact = "Contact information is required"
-    } else if (!/^\S+@\S+\.\S+$/.test(reportForm.contact) && !/^\d{10}$/.test(reportForm.contact)) {
-      errors.contact = "Please enter a valid email or phone number"
+    if (!reportForm.state?.trim()) {
+      errors.state = "State is required"
     }
-
+    if (!reportForm.pinCode?.trim()) {
+      errors.pinCode = "Pin code is required"
+    } else if (!/^\d{6}$/.test(reportForm.pinCode)) {
+      errors.pinCode = "Please enter a valid 6-digit pin code"
+    }
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
 
   const handleSubmitReport = async (e) => {
     e.preventDefault()
-
+    
     if (!validateForm()) {
       return
     }
@@ -344,30 +343,25 @@ export default function LandingPage() {
 
     try {
       // Send report to Firebase API
-      const res = await fetch('/api/data', {
+      const res = await fetch('/api/outageReports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reportForm),
       })
       const result = await res.json()
-      
       if (result.success) {
         setSubmitSuccess(true)
-        // Reset form
+        // Reset form after successful submission
         setReportForm({
           type: "electricity",
           description: "",
-          address: "",
+          locality: "",
+          city: "",
+          state: "",
+          pinCode: "",
           photo: null,
-          name: "",
-          contact: "",
         })
-        // Optionally refetch outages
-        const res = await fetch('/api/data')
-        const data = await res.json()
-        if (data.success && data.data) {
-          setOutages(data.data)
-        }
+        setFormErrors({})
       } else {
         alert(result.error || 'Failed to submit report. Please try again.')
       }
@@ -1346,8 +1340,7 @@ export default function LandingPage() {
                 </div>
                 <h2 className="text-2xl font-bold text-[#1F2937] mb-4">Report Submitted Successfully!</h2>
                 <p className="text-gray-600 mb-6">
-                  Thank you for reporting the issue. Our team will review it and take appropriate action. You will
-                  receive updates on the status of your report.
+                  Thank you for reporting the issue. You will receive updates on the status of your report.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button
@@ -1369,7 +1362,6 @@ export default function LandingPage() {
                   <Button
                     onClick={() => {
                       setSubmitSuccess(false)
-                      // Keep the report form open for another report
                     }}
                     variant="outline"
                     className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white"
@@ -1454,7 +1446,99 @@ export default function LandingPage() {
                       </div>
                     </div>
                   </div>
+                    
+                  
+                  
+                  {/* Location Details */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-medium text-[#1F2937] mb-4">Location Details</h3>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Locality */}
+                      <div>
+                        <label htmlFor="locality" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          Locality <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="locality"
+                            name="locality"
+                            value={reportForm.locality}
+                            onChange={handleFormChange}
+                            required
+                            placeholder="Enter your locality"
+                            className="pl-10 h-12 w-full border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md"
+                          />
+                        </div>
+                      </div>
+
+                      {/* City */}
+                      <div>
+                        <label htmlFor="city" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          City <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="city"
+                            name="city"
+                            value={reportForm.city}
+                            onChange={handleFormChange}
+                            required
+                            placeholder="Enter your city"
+                            className="pl-10 h-12 w-full border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md"
+                          />
+                        </div>
+                      </div>
+
+                      {/* State */}
+                      <div>
+                        <label htmlFor="state" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          State <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="state"
+                            name="state"
+                            value={reportForm.state}
+                            onChange={handleFormChange}
+                            required
+                            placeholder="Enter state name"
+                            className="pl-10 h-12 w-full border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pin Code */}
+                      <div>
+                        <label htmlFor="pinCode" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          Pin Code <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="pinCode"
+                            name="pinCode"
+                            value={reportForm.pinCode}
+                            onChange={handleFormChange}
+                            required
+                            placeholder="Enter 6-digit pin code"
+                            maxLength={6}
+                            pattern="[0-9]*"
+                            className="pl-10 h-12 w-full border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                
                   {/* Description */}
                   <div>
                     <label htmlFor="description" className="block text-sm font-medium text-[#1F2937] mb-2">
@@ -1472,144 +1556,6 @@ export default function LandingPage() {
                     />
                     {formErrors.description && <p className="text-red-500 text-sm mt-1">{formErrors.description}</p>}
                   </div>
-
-                      
-                  
-                  
-                  {/* Location Details */}
-                  <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-lg font-medium text-[#1F2937] mb-4">Location Details</h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                      {/* Locality */}
-                      <div>
-                        <label htmlFor="locality" className="block text-sm font-medium text-[#1F2937] mb-2">
-                          Locality <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <SearchBox
-                            accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                            options={{ language: "en", limit: 5 }}
-                            value={locality}
-                            onRetrieve={(res) => {
-                              const selected = res.suggestion?.name || res.features?.[0]?.text || "";
-                              setLocality(selected);
-                            }}
-                            onChange={(e) => {
-                              if (typeof e === "string") {
-                                setLocality(e);
-                              } else if (e && e.target) {
-                                setLocality(e.target.value);
-                              }
-                            }}
-                            inputProps={{
-                              id: "locality",
-                              placeholder: "Enter your locality",
-                              className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* City */}
-                      <div>
-                        <label htmlFor="city" className="block text-sm font-medium text-[#1F2937] mb-2">
-                          City <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <SearchBox
-                            accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                            options={{ language: "en", limit: 5 }}
-                            value={city}
-                            onRetrieve={(res) => {
-                              const selected = res.suggestion?.name || res.features?.[0]?.text || "";
-                              setCity(selected);
-                            }}
-                            onChange={(e) => {
-                              if (typeof e === "string") {
-                                setCity(e);
-                              } else if (e && e.target) {
-                                setCity(e.target.value);
-                              }
-                            }}
-                            inputProps={{
-                              id: "city",
-                              placeholder: "Enter your city",
-                              className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* State */}
-                      <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-[#1F2937] mb-2">
-                          State <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <SearchBox
-                            accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                            options={{ language: "en", limit: 5 }}
-                            value={state}
-                            onRetrieve={(res) => {
-                              const selected = res.suggestion?.name || res.features?.[0]?.text || "";
-                              setState(selected);
-                            }}
-                            onChange={(e) => {
-                              if (typeof e === "string") {
-                                setState(e);
-                              } else if (e && e.target) {
-                                setState(e.target.value);
-                              }
-                            }}
-                            inputProps={{
-                              id: "state",
-                              placeholder: "Enter state name",
-                              className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Pin Code */}
-                      <div>
-                        <label htmlFor="pinCode" className="block text-sm font-medium text-[#1F2937] mb-2">
-                          Pin Code <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                          <SearchBox
-                            accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                            options={{ language: "en", limit: 5 }}
-                            value={pinCode}
-                            onRetrieve={(res) => {
-                              const selected = res.suggestion?.name || res.features?.[0]?.text || "";
-                              setPinCode(selected);
-                            }}  
-                            onChange={(e) => {
-                              if (typeof e === "string") {
-                                setPinCode(e);
-                              } else if (e && e.target) {
-                                setPinCode(e.target.value);
-                              }
-                            }}
-                            inputProps={{
-                              id: "pinCode",
-                              placeholder: "Enter 6-digit pin code",
-                              className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                
-
                   
 
                   {/* Photo Upload */}
@@ -1676,53 +1622,9 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  {/* Contact Information */}
-                  <div className="border-t border-gray-200 pt-6 mt-6">
-                    <h3 className="text-lg font-medium text-[#1F2937] mb-4">Your Information</h3>
-
-                    <div className="space-y-4">
-                      {/* Name */}
-                      <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-[#1F2937] mb-2">
-                          Your Name <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          id="name"
-                          name="name"
-                          placeholder="Enter your full name"
-                          defaultValue={user.name}
-                          value={reportForm.name}
-                          onChange={handleFormChange}
-                          className={`h-12 border-2 ${
-                            formErrors.name ? "border-red-500" : "border-gray-300"
-                          } focus:border-[#4F46E5] focus:ring-0 outline-none`}
-                        />
-                        {formErrors.name && <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
-                      </div>
-
-                      {/* Contact */}
-                      <div>
-                        <label htmlFor="contact" className="block text-sm font-medium text-[#1F2937] mb-2">
-                          Email or Phone <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          id="contact"
-                          name="contact"
-                          placeholder="Enter your email or phone number"
-                          defaultValue={user.email}
-                          value={reportForm.contact}
-                          onChange={handleFormChange}
-                          className={`h-12 border-2 ${
-                            formErrors.contact ? "border-red-500" : "border-gray-300"
-                          } focus:border-[#4F46E5] focus:ring-0 outline-none`}
-                        />
-                        {formErrors.contact && <p className="text-red-500 text-sm mt-1">{formErrors.contact}</p>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <div className="flex justify-end pt-4">
+                  
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4">
                     <Button
                       type="submit"
                       disabled={isSubmitting}
@@ -1737,8 +1639,8 @@ export default function LandingPage() {
                         "Submit Report"
                       )}
                     </Button>
-                  </div>
-                </form>
+                </div>
+              </form>
               </div>
             )}
           </div>

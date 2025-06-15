@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bell, Settings, MapPin, Calendar, AlertTriangle, MessageSquare, X } from "lucide-react"
 import dynamic from "next/dynamic";
+import { Textarea } from "@/components/ui/textarea"
 
 
 const SearchBox = dynamic(() => import("@mapbox/search-js-react").then(mod => mod.SearchBox), {
@@ -105,6 +106,8 @@ export default function UserDashboard({ user, onLogout }) {
 
   // Add a new state variable for showing the report page:
   const [showReportPage, setShowReportPage] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [formErrors, setFormErrors] = useState({})
 
   // Add a new state variable
   const [showOutagesPage, setShowOutagesPage] = useState(false)
@@ -127,12 +130,28 @@ export default function UserDashboard({ user, onLogout }) {
   const [reportForm, setReportForm] = useState({
     type: "electricity",
     description: "",
-    address: "",
-    severity: "medium",
+    locality: "",
+    city: "",
+    state: "",
+    pinCode: "",
     photo: null,
-    name: "",
-    contact: "",
   })
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target
+    setReportForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+
+    // Clear error when field is edited
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: null,
+      }))
+    }
+  }
 
   // Add these state variables at the top of your component
   const [address, setAddress] = useState('')
@@ -957,6 +976,70 @@ export default function UserDashboard({ user, onLogout }) {
     setExpandedOutageId(expandedOutageId === locationId ? null : locationId)
   }
 
+  const validateForm = () => {
+    const errors = {}
+    if (!reportForm.description?.trim()) {
+      errors.description = "Description is required"
+    }
+    if (!reportForm.locality?.trim()) {
+      errors.locality = "Locality is required"
+    }
+    if (!reportForm.city?.trim()) {
+      errors.city = "City is required"
+    }
+    if (!reportForm.state?.trim()) {
+      errors.state = "State is required"
+    }
+    if (!reportForm.pinCode?.trim()) {
+      errors.pinCode = "Pin code is required"
+    } else if (!/^\d{6}$/.test(reportForm.pinCode)) {
+      errors.pinCode = "Please enter a valid 6-digit pin code"
+    }
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleSubmitReport = async (e) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      // Send report to Firebase API
+      const res = await fetch('/api/outageReports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reportForm),
+      })
+      const result = await res.json()
+      if (result.success) {
+        setSubmitSuccess(true)
+        // Reset form after successful submission
+        setReportForm({
+          type: "electricity",
+          description: "",
+          locality: "",
+          city: "",
+          state: "",
+          pinCode: "",
+          photo: null,
+        })
+        setFormErrors({})
+      } else {
+        alert(result.error || 'Failed to submit report. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error)
+      alert('Failed to submit report. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   // Report Page
   if (showReportPage) {
     return (
@@ -982,268 +1065,266 @@ export default function UserDashboard({ user, onLogout }) {
           {/* Report Form */}
           <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
             <div className="p-6">
-              <form className="space-y-6">
-                {/* Outage Type */}
-                <div>
-                  <label className="block text-sm font-medium text-[#1F2937] mb-3">Outage Type</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div
-                      className={`border-2 ${
-                        reportForm.type === "electricity"
-                          ? "border-[#F59E0B] bg-[#F59E0B]/10"
-                          : "border-gray-200 hover:border-gray-300"
-                      } rounded-lg p-4 cursor-pointer transition-colors`}
-                      onClick={() => setReportForm((prev) => ({ ...prev, type: "electricity" }))}
-                    >
-                      <div className="flex items-center">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                            reportForm.type === "electricity" ? "border-[#F59E0B]" : "border-gray-400"
-                          }`}
-                        >
-                          {reportForm.type === "electricity" && <div className="w-3 h-3 rounded-full bg-[#F59E0B]" />}
-                        </div>
+              {submitSuccess ? (
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#1F2937] mb-4">Report Submitted Successfully!</h2>
+                  <p className="text-gray-600 mb-6">
+                    
+                  Thank you for reporting the issue. You will receive updates on the status of your report.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitReport} className="space-y-6">
+                  {/* Outage Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#1F2937] mb-3">Outage Type</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div
+                        className={`border-2 ${
+                          reportForm.type === "electricity"
+                            ? "border-[#F59E0B] bg-[#F59E0B]/10"
+                            : "border-gray-200 hover:border-gray-300"
+                        } rounded-lg p-4 cursor-pointer transition-colors`}
+                        onClick={() => setReportForm((prev) => ({ ...prev, type: "electricity" }))}
+                      >
                         <div className="flex items-center">
-                          <AlertTriangle className="w-5 h-5 mr-2 text-gray-700" />
-                          <div>
-                            <p className="font-medium">Electricity</p>
-                            <p className="text-xs text-gray-500">Power outage or issues</p>
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                              reportForm.type === "electricity" ? "border-[#F59E0B]" : "border-gray-400"
+                            }`}
+                          >
+                            {reportForm.type === "electricity" && <div className="w-3 h-3 rounded-full bg-[#F59E0B]" />}
+                          </div>
+                          <div className="flex items-center">
+                            <AlertTriangle className="w-5 h-5 mr-2 text-gray-700" />
+                            <div>
+                              <p className="font-medium">Electricity</p>
+                              <p className="text-xs text-gray-500">Power outage or issues</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          reportForm.type === "water"
+                            ? "border-[#4F46E5] bg-[#4F46E5]/10"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                        onClick={() => setReportForm((prev) => ({ ...prev, type: "water" }))}
+                      >
+                        <div className="flex items-center">
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                              reportForm.type === "water" ? "border-[#4F46E5]" : "border-gray-400"
+                            }`}
+                          >
+                            {reportForm.type === "water" && <div className="w-3 h-3 rounded-full bg-[#4F46E5]" />}
+                          </div>
+                          <div className="flex items-center">
+                            <svg className="w-5 h-5 mr-2 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            <div>
+                              <p className="font-medium">Water</p>
+                              <p className="text-xs text-gray-500">Water supply issues</p>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                        reportForm.type === "water"
-                          ? "border-[#4F46E5] bg-[#4F46E5]/10"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                      onClick={() => setReportForm((prev) => ({ ...prev, type: "water" }))}
-                    >
-                      <div className="flex items-center">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                            reportForm.type === "water" ? "border-[#4F46E5]" : "border-gray-400"
-                          }`}
-                        >
-                          {reportForm.type === "water" && <div className="w-3 h-3 rounded-full bg-[#4F46E5]" />}
+                  
+
+                  {/* Location Details */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-medium text-[#1F2937] mb-4">Location Details</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Locality */}
+                      <div>
+                        <label htmlFor="locality" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          Locality <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="locality"
+                            name="locality"
+                            value={reportForm.locality}
+                            onChange={handleFormChange}
+                            placeholder="Enter your locality"
+                            required
+                            className={`pl-10 h-12 w-full border-2 ${
+                              formErrors.locality ? "border-red-500" : "border-gray-300"
+                            } focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md`}
+                          />
+                          {formErrors.locality && (
+                            <p className="text-red-500 text-sm mt-1">{formErrors.locality}</p>
+                          )}
                         </div>
-                        <div className="flex items-center">
-                          <svg className="w-5 h-5 mr-2 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+                      </div>
+
+                      {/* City */}
+                      <div>
+                        <label htmlFor="city" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          City <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="city"
+                            name="city"
+                            value={reportForm.city}
+                            onChange={handleFormChange}
+                            placeholder="Enter your city"
+                            required
+                            className={`pl-10 h-12 w-full border-2 ${
+                              formErrors.city ? "border-red-500" : "border-gray-300"
+                            } focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md`}
+                          />
+                          {formErrors.city && (
+                            <p className="text-red-500 text-sm mt-1">{formErrors.city}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* State */}
+                      <div>
+                        <label htmlFor="state" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          State <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="state"
+                            name="state"
+                            value={reportForm.state}
+                            onChange={handleFormChange}
+                            placeholder="Enter state name"
+                            required
+                            className={`pl-10 h-12 w-full border-2 ${
+                              formErrors.state ? "border-red-500" : "border-gray-300"
+                            } focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md`}
+                          />
+                          {formErrors.state && (
+                            <p className="text-red-500 text-sm mt-1">{formErrors.state}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pin Code */}
+                      <div>
+                        <label htmlFor="pinCode" className="block text-sm font-medium text-[#1F2937] mb-2">
+                          Pin Code <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            id="pinCode"
+                            name="pinCode"
+                            value={reportForm.pinCode}
+                            onChange={handleFormChange}
+                            placeholder="Enter 6-digit pin code"
+                            maxLength={6}
+                            pattern="[0-9]*"
+                            required
+                            className={`pl-10 h-12 w-full border-2 ${
+                              formErrors.pinCode ? "border-red-500" : "border-gray-300"
+                            } focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md`}
+                          />
+                          {formErrors.pinCode && (
+                            <p className="text-red-500 text-sm mt-1">{formErrors.pinCode}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-medium text-[#1F2937] mb-4">Description</h3>
+                    <div>
+                      <label htmlFor="description" className="block text-sm font-medium text-[#1F2937] mb-2">
+                        Describe the issue <span className="text-red-500">*</span>
+                      </label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        value={reportForm.description}
+                        onChange={handleFormChange}
+                        placeholder="Please provide details about the outage..."
+                        required
+                        className={`min-h-[100px] w-full border-2 ${
+                          formErrors.description ? "border-red-500" : "border-gray-300"
+                        } focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md`}
+                      />
+                      {formErrors.description && (
+                        <p className="text-red-500 text-sm mt-1">{formErrors.description}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Photo Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#1F2937] mb-2">Upload Photo (Optional)</label>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <input type="file" id="photo" accept="image/*" className="hidden" />
+                      <label htmlFor="photo" className="cursor-pointer">
+                        <div className="flex flex-col items-center">
+                          <svg
+                            className="w-10 h-10 text-gray-400 mb-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path
-                              fillRule="evenodd"
-                              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                              clipRule="evenodd"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                             />
                           </svg>
-                          <div>
-                            <p className="font-medium">Water</p>
-                            <p className="text-xs text-gray-500">Water supply issues</p>
-                          </div>
+                          <p className="text-sm text-gray-600">Click to upload a photo of the issue</p>
+                          <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
                         </div>
-                      </div>
+                      </label>
                     </div>
                   </div>
-                </div>
 
-                {/* Description */}
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-[#1F2937] mb-2">
-                    Description <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="description"
-                    placeholder="Please describe the issue in detail"
-                    className="w-full min-h-[100px] p-3 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md"
-                  />
-                </div>
-
-                {/* Location Details */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-medium text-[#1F2937] mb-4">Location Details</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Locality */}
-                    <div>
-                      <label htmlFor="locality" className="block text-sm font-medium text-[#1F2937] mb-2">
-                        Locality <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <SearchBox
-                          accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                          options={{ language: "en", limit: 5 }}
-                          value={locality}
-                          onRetrieve={(res) => {
-                            setLocality(res.features?.[0]?.text || "");
-                          }}
-                          onChange={(e) => setLocality(e.target.value)}
-                          inputProps={{
-                            id: "locality",
-                            placeholder: "Enter your locality",
-                            className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* City */}
-                    <div>
-                      <label htmlFor="city" className="block text-sm font-medium text-[#1F2937] mb-2">
-                        City <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <SearchBox
-                          accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                          options={{ language: "en", limit: 5 }}
-                          value={city}
-                          onRetrieve={(res) => {
-                            setCity(res.features?.[0]?.text || "");
-                          }}
-                          onChange={(e) => setCity(e.target.value)}
-                          inputProps={{
-                            id: "city",
-                            placeholder: "Enter your city",
-                            className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* State */}
-                    <div>
-                      <label htmlFor="state" className="block text-sm font-medium text-[#1F2937] mb-2">
-                        State <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <SearchBox
-                          accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                          options={{ language: "en", limit: 5 }}
-                          value={state}
-                          onRetrieve={(res) => {
-                            setState(res.features?.[0]?.text || "");
-                          }}
-                          onChange={(e) => setState(e.target.value)}
-                          inputProps={{
-                            id: "state",
-                            placeholder: "Enter state name",
-                            className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pin Code */}
-                    <div>
-                      <label htmlFor="pinCode" className="block text-sm font-medium text-[#1F2937] mb-2">
-                        Pin Code <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                        <SearchBox
-                          accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
-                          options={{ language: "en", limit: 5 }}
-                          value={pinCode}
-                          onRetrieve={(res) => {
-                            setPinCode(res.features?.[0]?.text || "");
-                          }}
-                          onChange={(e) => setPinCode(e.target.value)}
-                          inputProps={{
-                            id: "pinCode",
-                            placeholder: "Enter 6-digit pin code",
-                            className: "pl-10 h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none",
-                          }}
-                        />
-                      </div>
-                    </div>
+                  {/* Submit Button */}
+                  <div className="flex justify-end pt-4">
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white px-8 py-3 text-lg font-semibold h-auto"
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Submitting...
+                        </div>
+                      ) : (
+                        "Submit Report"
+                      )}
+                    </Button>
                   </div>
-                </div>
-
-                
-
-                {/* Photo Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-[#1F2937] mb-2">Upload Photo (Optional)</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input type="file" id="photo" accept="image/*" className="hidden" />
-                    <label htmlFor="photo" className="cursor-pointer">
-                      <div className="flex flex-col items-center">
-                        <svg
-                          className="w-10 h-10 text-gray-400 mb-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                          />
-                        </svg>
-                        <p className="text-sm text-gray-600">Click to upload a photo of the issue</p>
-                        <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB</p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Contact Information */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-medium text-[#1F2937] mb-4">Your Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-[#1F2937] mb-2">
-                        Your Name <span className="text-red-500">*</span>
-                      </label>
-                      <Input
-                        id="name"
-                        placeholder="Enter your full name"
-                        defaultValue={user.name}
-                        className="h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="contact" className="block text-sm font-medium text-[#1F2937] mb-2">
-                        Email or Phone <span className="text-red-500">*</span>
-                      </label>
-                      <Input
-                        id="contact"
-                        placeholder="Enter your email or phone number"
-                        defaultValue={user.email}
-                        className="h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowReportPage(false)}
-                    className="border-gray-300"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setShowReportPage(false)
-                      alert("Report submitted successfully! You will receive updates on the status.")
-                    }}
-                    className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white px-8"
-                  >
-                    Submit Report
-                  </Button>
-                </div>
-              </form>
+                </form>
+              )}
             </div>
           </div>
         </div>
