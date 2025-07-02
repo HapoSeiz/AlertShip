@@ -1,55 +1,50 @@
 "use client"
 
-const footerLinks = {
-  company: [
-    {
-      name: "About",
-      href: "#",
-      onClick: () => {
-        // This will be handled by the parent component
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("navigate-to-about"))
-        }
-      },
-    },
-    {
-      name: "Founders",
-      href: "#team",
-      onClick: () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("navigate-to-about", { detail: { scrollTo: "team" } }))
-        }
-      },
-    },
-  ],
-  support: [
-    {
-      name: "FAQs",
-      href: "#",
-      onClick: () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("navigate-to-faqs"))
-        }
-      },
-    },
-    {
-      name: "Contact",
-      href: "#",
-      onClick: () => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("navigate-to-contact"))
-        }
-      },
-    },
-  ],
-  products: [
-    { name: "Outage Tracking", href: "#" },
-    { name: "AI Outage Trend", href: "#" },
-    { name: "Outage Alerts", href: "#" },
-  ],
-}
+import { useRouter } from "next/navigation"
 
 export default function Footer({ showQuestionsSection = false, onNavigate }) {
+  const router = useRouter()
+
+  const footerLinks = {
+    company: [
+      {
+        name: "About",
+        href: "#",
+        onClick: () => {
+          router.push("/about")
+        },
+      },
+      {
+        name: "Founders",
+        href: "#team",
+        onClick: () => {
+          router.push("/about")
+        },
+      },
+    ],
+    support: [
+      {
+        name: "FAQs",
+        href: "#",
+        onClick: () => {
+          router.push("/faqs")
+        },
+      },
+      {
+        name: "Contact",
+        href: "#",
+        onClick: () => {
+          router.push("/contact")
+        },
+      },
+    ],
+    products: [
+      { name: "Outage Tracking", href: "#" },
+      { name: "AI Outage Trend", href: "#" },
+      { name: "Outage Alerts", href: "#" },
+    ],
+  }
+
   const handleLinkClick = (e, link) => {
     e.preventDefault()
     if (link.onClick) {
@@ -106,9 +101,7 @@ export default function Footer({ showQuestionsSection = false, onNavigate }) {
             <div className="text-center">
               <button
                 onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.dispatchEvent(new CustomEvent("navigate-to-faqs"))
-                  }
+                  router.push("/faqs")
                 }}
                 className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-8 py-3 rounded-xl font-semibold text-lg transition-colors"
               >

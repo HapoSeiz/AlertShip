@@ -1339,7 +1339,9 @@ export default function UserDashboard({ user, onLogout }) {
         <div className="bg-white rounded-2xl p-6 shadow-sm border mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">Welcome, {user.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">
+                {user ? `Welcome, ${user.name}` : "Welcome"}
+              </h1>
               <p className="text-gray-600 mt-1">Stay updated with outages in your area</p>
             </div>
           </div>
@@ -2305,7 +2307,7 @@ export default function UserDashboard({ user, onLogout }) {
                     Address
                   </label>
                   <SearchBox
-                    accessToken="pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA"
+                    accessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
                     options={{ language: "en", limit: 5 }}
                     value={newLocation.address}
                     onRetrieve={(res) => {

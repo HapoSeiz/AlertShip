@@ -1,11 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Nunito } from "next/font/google"
 import Footer from "@/components/footer"
+import Header from "@/components/header"
 import { AuthModals } from "@/components/auth-modals"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuthModals } from "@/hooks/useAuthModals"
+
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -14,200 +18,47 @@ const nunito = Nunito({
 })
 
 export default function AboutPage() {
-  const [isSignUpOpen, setIsSignUpOpen] = useState(false)
-  const [isLogInOpen, setIsLogInOpen] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState(null)
+  const router = useRouter()
+  const {
+    isSignUpOpen, isLogInOpen, isLoggedIn, user,
+    openSignUp, openLogIn, closeSignUp, closeLogIn,
+    switchToLogIn, switchToSignUp, handleLogin, handleLogout
+  } = useAuthModals()
 
-  const [scrolled, setScrolled] = useState(false)
-  const [scrollProgress, setScrollProgress] = useState(0)
-
-  // Update the scroll effect with smoother calculation
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight
-      const scrollPercent = Math.min((scrollTop / docHeight) * 100, 100)
-
-      setScrolled(scrollTop > 10)
-      setScrollProgress(scrollPercent)
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true })
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
-
-  // Check if user is logged in on component mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem("alertship_user")
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        setUser(parsedUser)
-        setIsLoggedIn(true)
-      } catch (error) {
-        console.error("Error parsing user data:", error)
-      }
-    }
-  }, [])
-
-  const openSignUp = () => {
-    setIsSignUpOpen(true)
-    setIsLogInOpen(false)
+  // Navigation handler for hyperlinks
+  const handleNavigate = (page) => {
+    if (page === "home") router.push("/")
+    else if (page === "about") router.push("/about")
+    else if (page === "contact") router.push("/contact")
+    else if (page === "faqs") router.push("/faqs")
+    else if (page === "dashboard") router.push("/dashboard")
+    else if (page === "report") router.push("/report")
+    else router.push("/")
   }
-
-  const openLogIn = () => {
-    setIsLogInOpen(true)
-    setIsSignUpOpen(false)
-  }
-
-  const closeSignUp = () => setIsSignUpOpen(false)
-  const closeLogIn = () => setIsLogInOpen(false)
-
-  const switchToLogIn = () => {
-    setIsSignUpOpen(false)
-    setIsLogInOpen(true)
-  }
-
-  const switchToSignUp = () => {
-    setIsLogInOpen(false)
-    setIsSignUpOpen(true)
-  }
-
-  const handleLogin = (userData) => {
-    setUser(userData)
-    setIsLoggedIn(true)
-    localStorage.setItem("alertship_user", JSON.stringify(userData))
-    closeLogIn()
-    closeSignUp()
-  }
-
-  const handleLogout = () => {
-    setUser(null)
-    setIsLoggedIn(false)
-    localStorage.removeItem("alertship_user")
-  }
-
-  const renderNavbar = () => (
-    <header
-      className={`fixed top-0 left-0 right-0 z-40 px-4 sm:px-6 lg:px-8 py-4 transition-all duration-500 ease-out ${
-        scrolled ? "backdrop-blur-md bg-white/80" : "bg-transparent"
-      }`}
-    >
-      {/* Bottom border that fills up smoothly */}
-      <div
-        className="absolute bottom-0 left-0 h-1 bg-[#4F46E5] transition-all duration-500 ease-out"
-        style={{ width: `${scrollProgress}%` }}
-      />
-
-      <div className="max-w-5xl mx-auto flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center space-x-2">
-          <img src="/images/alertship-logo.png" alt="AlertShip" className="h-10 sm:h-12" />
-        </div>
-
-        {/* Navigation */}
-        <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
-          <a href="/" className="text-sm lg:text-base text-[#1F2937] hover:text-[#4F46E5] transition-colors">
-            Home
-          </a>
-          <a href="/about" className="text-sm lg:text-base text-[#4F46E5] font-semibold transition-colors">
-            About
-          </a>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault()
-              if (!isLoggedIn) {
-                setIsLogInOpen(true)
-              } else {
-                // Navigate to report page
-                window.location.href = "/?report=true"
-              }
-            }}
-            className="text-sm lg:text-base text-[#1F2937] hover:text-[#4F46E5] transition-colors"
-          >
-            Report Outage
-          </a>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault()
-              alert("Contact Us page coming soon!")
-            }}
-            className="text-sm lg:text-base text-[#1F2937] hover:text-[#4F46E5] transition-colors"
-          >
-            Contact Us
-          </a>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault()
-              alert("FAQs page coming soon!")
-            }}
-            className="text-sm lg:text-base text-[#1F2937] hover:text-[#4F46E5] transition-colors"
-          >
-            FAQs
-          </a>
-        </nav>
-
-        {/* Auth Buttons */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          {isLoggedIn ? (
-            <>
-              <Button
-                onClick={() => (window.location.href = "/?dashboard=true")}
-                variant="ghost"
-                className="text-[#1F2937] hover:bg-gray-100"
-              >
-                Dashboard
-              </Button>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
-              >
-                Log Out
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                onClick={openSignUp}
-                className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
-              >
-                Sign Up
-              </Button>
-              <Button
-                onClick={openLogIn}
-                className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
-              >
-                Log In
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
-  )
 
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}
-      {renderNavbar()}
+      <Header
+        currentPage="about"
+        isLoggedIn={isLoggedIn}
+        onLoginOpen={openLogIn}
+        onSignUpOpen={openSignUp}
+        onLogout={handleLogout}
+        onNavigate={handleNavigate}
+      />
 
       {/* Main Content */}
       <main className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-16">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1F2937] mb-6 font-playfair">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1F2937] mb-6 ${nunito.className}">
               About <span className="text-[#4F46E5]">AlertShip</span>
             </h1>
             <p className="text-xl sm:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-              Keeping communities informed and connected during utility outages with real-time reporting and intelligent
-              alerts.
+              Keeping communities informed and connected during utility outages with real-time reporting and
+              intelligent alerts.
             </p>
           </div>
 
@@ -217,9 +68,9 @@ export default function AboutPage() {
               <div>
                 <h2 className="text-3xl sm:text-4xl font-bold text-[#1F2937] mb-6">Our Mission</h2>
                 <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                  AlertShip was born from a simple yet powerful idea: communities should never be left in the dark about
-                  utility outages. We believe that timely, accurate information can transform how people prepare for and
-                  respond to power and water disruptions.
+                  AlertShip was born from a simple yet powerful idea: communities should never be left in the dark
+                  about utility outages. We believe that timely, accurate information can transform how people prepare
+                  for and respond to power and water disruptions.
                 </p>
                 <p className="text-lg text-gray-600 leading-relaxed">
                   Our platform empowers residents to report outages instantly, stay informed about scheduled
@@ -255,8 +106,8 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-xl font-bold text-[#1F2937] mb-4">Real-Time Reporting</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Report outages instantly and see real-time updates from your community. No more wondering if it's just
-                  your house or the whole neighborhood.
+                  Report outages instantly and see real-time updates from your community. No more wondering if it's
+                  just your house or the whole neighborhood.
                 </p>
               </div>
 
@@ -322,42 +173,34 @@ export default function AboutPage() {
           </div>
 
           {/* Team Section */}
-          <div className="mb-16">
+          <div className="mb-16" id="team">
             <h2 className="text-3xl sm:text-4xl font-bold text-[#1F2937] text-center mb-12">Meet Our Team</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-white rounded-2xl p-8 shadow-sm border text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full mx-auto mb-6 flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">SC</span>
-                </div>
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-6"></div>
                 <h3 className="text-xl font-bold text-[#1F2937] mb-2">Sarah Chen</h3>
                 <p className="text-[#4F46E5] font-medium mb-4">CEO & Co-Founder</p>
                 <p className="text-gray-600 text-sm leading-relaxed">
-                  Former utility engineer with 10+ years of experience in grid management and community infrastructure
-                  at Pacific Gas & Electric.
+                  Former utility engineer with 10+ years of experience in grid management and community
+                  infrastructure.
                 </p>
               </div>
 
               <div className="bg-white rounded-2xl p-8 shadow-sm border text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full mx-auto mb-6 flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">MR</span>
-                </div>
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-6"></div>
                 <h3 className="text-xl font-bold text-[#1F2937] mb-2">Marcus Rodriguez</h3>
                 <p className="text-[#4F46E5] font-medium mb-4">CTO & Co-Founder</p>
                 <p className="text-gray-600 text-sm leading-relaxed">
-                  Tech veteran specializing in real-time systems and AI-powered analytics. Previously led engineering
-                  teams at Tesla and SpaceX.
+                  Tech veteran specializing in real-time systems and AI-powered analytics for critical infrastructure.
                 </p>
               </div>
 
               <div className="bg-white rounded-2xl p-8 shadow-sm border text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full mx-auto mb-6 flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">PP</span>
-                </div>
+                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-6"></div>
                 <h3 className="text-xl font-bold text-[#1F2937] mb-2">Priya Patel</h3>
                 <p className="text-[#4F46E5] font-medium mb-4">Head of Community</p>
                 <p className="text-gray-600 text-sm leading-relaxed">
-                  Community advocate with experience at Nextdoor and Ring. Focused on making technology accessible for
-                  diverse neighborhoods.
+                  Community advocate focused on making technology accessible and useful for diverse neighborhoods.
                 </p>
               </div>
             </div>
@@ -381,8 +224,8 @@ export default function AboutPage() {
                 <div>
                   <h3 className="text-xl font-bold text-[#1F2937] mb-3">Privacy First</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    Your data is yours. We collect only what's necessary to provide our service and never sell personal
-                    information.
+                    Your data is yours. We collect only what's necessary to provide our service and never sell
+                    personal information.
                   </p>
                 </div>
               </div>
@@ -390,7 +233,12 @@ export default function AboutPage() {
               <div className="flex items-start space-x-4">
                 <div className="w-12 h-12 bg-[#F59E0B]/20 rounded-lg flex items-center justify-center flex-shrink-0">
                   <svg className="w-6 h-6 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
                   </svg>
                 </div>
                 <div>
@@ -436,20 +284,48 @@ export default function AboutPage() {
                 <div>
                   <h3 className="text-xl font-bold text-[#1F2937] mb-3">Innovation</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    We continuously innovate to provide better predictions, faster alerts, and more useful insights for
-                    our users.
+                    We continuously innovate to provide better predictions, faster alerts, and more useful insights
+                    for our users.
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* CTA Section */}
+          <div className="text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#1F2937] mb-6">Ready to Stay Connected?</h2>
+            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+              Join thousands of users who trust AlertShip to keep them informed about utility outages in their
+              community.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                onClick={() => {
+                  handleNavigate("report")
+                }}
+                className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-8 py-3 text-lg"
+              >
+                Get Started
+              </Button>
+              <Button
+                onClick={() => {
+                  handleNavigate("report")
+                }}
+                variant="outline"
+                className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white px-8 py-3 text-lg"
+              >
+                Report an Outage
+              </Button>
             </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onNavigate={() => {}} />
 
-      {/* Auth Modals */}
+      {/* Auth Modals - Available on About Page */}
       <AuthModals
         isSignUpOpen={isSignUpOpen}
         isLogInOpen={isLogInOpen}

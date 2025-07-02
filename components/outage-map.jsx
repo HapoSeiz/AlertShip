@@ -5,10 +5,10 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Map } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/firebase/firebase';
 
 // Use the hardcoded token
-mapboxgl.accessToken = "pk.eyJ1IjoiaGl0bWFuMTMxMCIsImEiOiJjbWJzYXE0N20waGw0MnFxdGxzdThrd2V6In0.J4LGkO6DJWUuRoER09zorA";
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export default function OutageMap() {
   const mapContainer = useRef(null);

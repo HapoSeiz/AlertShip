@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Eye, EyeOff, Mail, Lock, User, Shield, AlertTriangle } from "lucide-react"
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { app } from '@/lib/firebase';
+import { app } from '@/firebase/firebase';
 
 // Google Icon Component
 const GoogleIcon = ({ className = "w-5 h-5" }) => (

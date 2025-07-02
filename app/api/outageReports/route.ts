@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { collection, addDoc, getDocs, query, where, Query, DocumentData } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/firebase/firebase';
 
 // POST: Add outage report to the database
 export async function POST(request: NextRequest) {

@@ -1,5 +1,5 @@
-// lib/firestoreHelpers.ts
-import { db } from "@/lib/firebase"
+// firebase/firestoreHelpers.ts
+import { db } from "@/firebase/firebase"
 import {
   collection,
   getDocs,
