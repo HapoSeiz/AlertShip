@@ -31,20 +31,14 @@ export default function LandingPage() {
   } = useAuthModals()
 
   // Navigation handler
-  const handleNavigate = (page, scrollTo) => {
-    if (page === "about") router.push("/about")
+  const handleNavigate = (page) => {
+    if (page === "home") router.push("/")
+    else if (page === "about") router.push("/about")
     else if (page === "contact") router.push("/contact")
     else if (page === "faqs") router.push("/faqs")
     else if (page === "dashboard") router.push("/dashboard")
+    else if (page === "report") router.push("/report")
     else router.push("/")
-    if (scrollTo) {
-      setTimeout(() => {
-        const element = document.getElementById(scrollTo)
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" })
-        }
-      }, 100)
-    }
   }
 
   const handleLocationSubmit = () => {
