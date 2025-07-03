@@ -345,10 +345,7 @@ export default function OutagesPage() {
               <Button
                 onClick={() => {
                   if (!isLoggedIn) {
-                    sessionStorage.setItem("postLoginAction", "report");
                     openLogIn();
-                    router.push("/report")
-                    return;
                   } else {
                     router.push("/report")
                   }
