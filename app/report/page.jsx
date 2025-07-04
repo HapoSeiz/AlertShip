@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useAuthModals } from "@/hooks/useAuthModals"
 import { MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,6 +20,29 @@ const nunito = Nunito({
 
 export default function ReportPage() {
     const router = useRouter()
+
+    const {
+      user,
+      isLoggedIn,
+      isLoading,
+      errors,
+      showSignUp,
+      showLogIn,
+      showVerifyEmail,
+      pendingVerificationUser,
+      resentSuccess,
+      resentError,
+      signUp,
+      logIn,
+      googleAuth,
+      resendVerificationEmail,
+      logOut,
+      openSignUp,
+      openLogIn,
+      closeSignUp,
+      closeLogIn,
+      closeVerifyEmail,
+    } = useAuthContext();
 
     const [submitSuccess, setSubmitSuccess] = useState(false)
     const [formErrors, setFormErrors] = useState({})
@@ -141,12 +163,6 @@ export default function ReportPage() {
         setIsSubmitting(false)
         }
     }
-
-    const {
-        isSignUpOpen, isLogInOpen, isLoggedIn, user,
-        openSignUp, openLogIn, closeSignUp, closeLogIn,
-        switchToLogIn, switchToSignUp, handleLogin, handleLogout
-    } = useAuthModals()
 
     const handleNavigate = (page, scrollTo) => {
         if (page === "home") router.push("/")

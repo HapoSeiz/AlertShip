@@ -8,7 +8,7 @@ import Header from "@/components/header"
 import { AuthModals } from "@/components/auth-modals"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuthModals } from "@/hooks/useAuthModals"
+import { useAuthContext } from "./AuthContext";
 
 
 const nunito = Nunito({
@@ -20,10 +20,27 @@ const nunito = Nunito({
 export default function AboutPage() {
   const router = useRouter()
   const {
-    isSignUpOpen, isLogInOpen, isLoggedIn, user,
-    openSignUp, openLogIn, closeSignUp, closeLogIn,
-    switchToLogIn, switchToSignUp, handleLogin, handleLogout
-  } = useAuthModals()
+    user,
+    isLoggedIn,
+    isLoading,
+    errors,
+    showSignUp,
+    showLogIn,
+    showVerifyEmail,
+    pendingVerificationUser,
+    resentSuccess,
+    resentError,
+    signUp,
+    logIn,
+    googleAuth,
+    resendVerificationEmail,
+    logOut,
+    openSignUp,
+    openLogIn,
+    closeSignUp,
+    closeLogIn,
+    closeVerifyEmail,
+  } = useAuthContext();
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {
