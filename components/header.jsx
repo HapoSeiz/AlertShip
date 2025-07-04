@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Nunito } from "next/font/google";
+import { useHydration } from "@/hooks/useHydration";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -18,6 +19,7 @@ export default function Header({
   onLogout,
   onNavigate,
 }) {
+  const isHydrated = useHydration();
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -135,7 +137,7 @@ export default function Header({
 
         {/* Auth Buttons */}
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {isLoggedIn ? (
+          {isHydrated && isLoggedIn ? (
             <>
               {currentPage !== "dashboard" && (
                 <Button

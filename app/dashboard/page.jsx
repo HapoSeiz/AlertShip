@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Nunito } from "next/font/google"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
