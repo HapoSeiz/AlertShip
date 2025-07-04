@@ -1,18 +1,26 @@
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function useAuthModals() {
   const router = useRouter();
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [isLogInOpen, setIsLogInOpen] = useState(false);
-  const [user, setUser] = useState(() => {
+  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Handle hydration
+  useEffect(() => {
+    setIsHydrated(true);
     if (typeof window !== "undefined") {
       const savedUser = localStorage.getItem("alertship_user");
-      return savedUser ? JSON.parse(savedUser) : null;
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        setIsLoggedIn(true);
+      }
     }
-    return null;
-  });
-  const [isLoggedIn, setIsLoggedIn] = useState(!!user);
+  }, []);
 
   const openSignUp = () => { setIsSignUpOpen(true); setIsLogInOpen(false); };
   const openLogIn = () => { setIsLogInOpen(true); setIsSignUpOpen(false); };
@@ -23,25 +31,31 @@ export function useAuthModals() {
   const handleLogin = (userData: any) => {
     setUser(userData);
     setIsLoggedIn(true);
-    localStorage.setItem("alertship_user", JSON.stringify(userData));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("alertship_user", JSON.stringify(userData));
+    }
     closeLogIn();
     closeSignUp();
 
     // Check for post-login action
-    const postLoginAction = sessionStorage.getItem("postLoginAction");
-    if (postLoginAction === "report") {
-      sessionStorage.removeItem("postLoginAction");
-      router.push("/report")
+    if (typeof window !== "undefined") {
+      const postLoginAction = sessionStorage.getItem("postLoginAction");
+      if (postLoginAction === "report") {
+        sessionStorage.removeItem("postLoginAction");
+        router.push("/report")
+      }
     }
   };
   const handleLogout = () => {
     setUser(null);
     setIsLoggedIn(false);
-    localStorage.removeItem("alertship_user");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("alertship_user");
+    }
   };
 
   return {
-    isSignUpOpen, isLogInOpen, isLoggedIn, user,
+    isSignUpOpen, isLogInOpen, isLoggedIn, user, isHydrated,
     openSignUp, openLogIn, closeSignUp, closeLogIn,
     switchToLogIn, switchToSignUp, handleLogin, handleLogout,
     setUser, setIsLoggedIn

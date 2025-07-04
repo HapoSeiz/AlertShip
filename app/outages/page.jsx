@@ -28,12 +28,10 @@ export default function OutagesPage() {
 
   const [outages, setOutages] = useState([])
   const [showUpcomingOutages, setShowUpcomingOutages] = useState(false)
-  const [showReportForm, setShowReportForm] = useState(false)
   const [viewMode, setViewMode] = useState("list") // "list" or "map"
   // Add a new state to track which outage details are being shown
   const [expandedOutageId, setExpandedOutageId] = useState(null)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [showInPageLogin, setShowInPageLogin] = useState(false)
+  const [currentMonth, setCurrentMonth] = useState(() => new Date())
   const [showNotificationModal, setShowNotificationModal] = useState(false)
 
   useEffect(() => {
@@ -591,7 +589,7 @@ export default function OutagesPage() {
                                     <div className="flex justify-between">
                                       <span className="text-gray-600">Reported At:</span>
                                       <span className="font-medium">
-                                        {new Date(report.reportedAt).toLocaleString()}
+                                        {report.reportedAt ? new Date(report.reportedAt).toLocaleString() : 'Unknown'}
                                       </span>
                                     </div>
                                   )}
