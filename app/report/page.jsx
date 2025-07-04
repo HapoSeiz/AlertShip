@@ -9,6 +9,7 @@ import { useEffect } from "react"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { AuthModals } from "@/components/auth-modals"
+import { useAuthContext } from "@/components/AuthContext";
 import { Nunito } from "next/font/google"
 
 const nunito = Nunito({ 

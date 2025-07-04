@@ -7,7 +7,7 @@ import { Nunito } from "next/font/google"
 import { useState } from "react"
 import Header from "@/components/header"
 import { useRouter } from "next/navigation"
-import { useAuthContext } from "./AuthContext";
+import { useAuthContext } from "@/components/AuthContext";
 
 const nunito = Nunito({
   subsets: ["latin"],

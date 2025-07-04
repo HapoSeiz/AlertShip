@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Eye, EyeOff, Mail, Lock, User, Shield, AlertTriangle } from "lucide-react";
-import { useAuthContext } from "./AuthContext";
+import { useAuthContext } from "@/components/AuthContext";
 
 export default function AuthModals() {
   const {
