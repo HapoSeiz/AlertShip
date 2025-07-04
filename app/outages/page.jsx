@@ -4,16 +4,16 @@ import { useState, useEffect } from "react"
 import { Nunito } from "next/font/google"
 import { Button } from "@/components/ui/button"
 import { Calendar, List, Map, X } from "lucide-react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
-import { useAuthModals } from "@/hooks/useAuthModals"
 import { fetchOutageReportsByCity } from "@/firebase/firestoreHelpers"
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from "date-fns"
 import { Input } from "@/components/ui/input"
 import { NotificationModal } from "@/components/notification-modal"
-import { AuthModals } from "@/components/auth-modals"
+import AuthModals from "@/components/auth-modals"
 import OutageMap from "@/components/outage-map"
+import { useAuthContext } from "@/components/AuthContext"
 
 const nunito = Nunito({
     subsets: ["latin"],
@@ -23,18 +23,19 @@ const nunito = Nunito({
 
 export default function OutagesPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const location = searchParams.get('location')
 
   const [outages, setOutages] = useState([])
   const [showUpcomingOutages, setShowUpcomingOutages] = useState(false)
   const [showReportForm, setShowReportForm] = useState(false)
-  const [viewMode, setViewMode] = useState("list") // "list" or "map"
-  // Add a new state to track which outage details are being shown
+  const [viewMode, setViewMode] = useState("list")
   const [expandedOutageId, setExpandedOutageId] = useState(null)
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [showInPageLogin, setShowInPageLogin] = useState(false)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
+
+  const { isLoggedIn, openLogIn } = useAuthContext();
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -43,13 +44,6 @@ export default function OutagesPage() {
     }
     fetchReports();
   }, [location]);
-
-  const {
-      isSignUpOpen, isLogInOpen, isLoggedIn, user,
-      openSignUp, openLogIn, closeSignUp, closeLogIn,
-      switchToLogIn, switchToSignUp, handleLogin, handleLogout,
-      setUser, setIsLoggedIn
-    } = useAuthModals()
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {
@@ -76,10 +70,6 @@ export default function OutagesPage() {
         {/* Header */}
         <Header
           currentPage="outages"
-          isLoggedIn={isLoggedIn}
-          onLoginOpen={openLogIn}
-          onSignUpOpen={openSignUp}
-          onLogout={handleLogout}
           onNavigate={(page) => router.push(page === 'home' ? '/' : `/${page}`)}
         />
 
@@ -314,10 +304,6 @@ export default function OutagesPage() {
       {/* Header */}
       <Header
         currentPage="outages"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
         onNavigate={handleNavigate}
       />
 
@@ -614,15 +600,7 @@ export default function OutagesPage() {
 
       {/* Footer */}
       <Footer />
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
 
     </div>
   )

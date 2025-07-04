@@ -11,8 +11,8 @@ import Benefits from "@/components/benefits"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
 import { useRouter } from "next/navigation"
-import { useAuthModals } from "@/hooks/useAuthModals"
-import { AuthModals } from "@/components/auth-modals"
+import AuthModals from "@/components/auth-modals"
+import { useAuthContext } from "@/components/AuthContext"
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -23,12 +23,7 @@ const nunito = Nunito({
 export default function LandingPage() {
   const router = useRouter()
   const [location, setLocation] = useState("")
-
-  const {
-    isSignUpOpen, isLogInOpen, isLoggedIn,
-    openSignUp, openLogIn, closeSignUp, closeLogIn,
-    switchToLogIn, switchToSignUp, handleLogin, handleLogout
-  } = useAuthModals()
+  const { isLoggedIn, openSignUp } = useAuthContext();
 
   // Navigation handler
   const handleNavigate = (page) => {
@@ -51,10 +46,6 @@ export default function LandingPage() {
       {/* Header */}
       <Header
         currentPage="home"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
         onNavigate={handleNavigate}
       />
 
@@ -133,15 +124,7 @@ export default function LandingPage() {
       <HowItWorks />
       <Benefits />
       <Footer showQuestionsSection={true} />
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
     </div>
   )
 }
