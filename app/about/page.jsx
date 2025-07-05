@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Nunito } from "next/font/google"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
-import AuthModals from "@/components/auth-modals"
+import { AuthModals } from "@/components/auth-modals"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthModals } from "@/hooks/useAuthModals";
