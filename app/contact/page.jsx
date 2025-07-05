@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import Footer from "@/components/footer"
-import { AuthModals } from "@/components/auth-modals"
+import AuthModals from "@/components/auth-modals"
 import { Nunito } from "next/font/google"
 import { useState } from "react"
 import Header from "@/components/header"
 import { useRouter } from "next/navigation"
-import { useAuthContext } from "@/components/AuthContext";
+import { useAuthModals } from "@/hooks/useAuthModals";
 
 const nunito = Nunito({ 
   subsets: ["latin"],
@@ -18,30 +18,21 @@ const nunito = Nunito({
 })
 
 export default function ContactPage() {
-  const router = useRouter()
-
+  const router = useRouter();
   const {
-    user,
     isLoggedIn,
-    isLoading,
-    errors,
-    showSignUp,
-    showLogIn,
-    showVerifyEmail,
-    pendingVerificationUser,
-    resentSuccess,
-    resentError,
-    signUp,
-    logIn,
-    googleAuth,
-    resendVerificationEmail,
-    logOut,
-    openSignUp,
+    user,
     openLogIn,
+    openSignUp,
+    handleLogout,
+    isSignUpOpen,
+    isLogInOpen,
     closeSignUp,
     closeLogIn,
-    closeVerifyEmail,
-  } = useAuthContext();
+    switchToLogIn,
+    switchToSignUp,
+    handleLogin,
+  } = useAuthModals();
 
   const handleNavigate = (page) => {
     if (page === "home") router.push("/")

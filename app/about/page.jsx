@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Nunito } from "next/font/google"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
-import { AuthModals } from "@/components/auth-modals"
+import AuthModals from "@/components/auth-modals"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuthContext } from "@/components/AuthContext";
+import { useAuthModals } from "@/hooks/useAuthModals";
 
 
 const nunito = Nunito({
@@ -18,29 +18,21 @@ const nunito = Nunito({
 })
 
 export default function AboutPage() {
-  const router = useRouter()
+  const router = useRouter();
   const {
-    user,
     isLoggedIn,
-    isLoading,
-    errors,
-    showSignUp,
-    showLogIn,
-    showVerifyEmail,
-    pendingVerificationUser,
-    resentSuccess,
-    resentError,
-    signUp,
-    logIn,
-    googleAuth,
-    resendVerificationEmail,
-    logOut,
-    openSignUp,
+    user,
     openLogIn,
+    openSignUp,
+    handleLogout,
+    isSignUpOpen,
+    isLogInOpen,
     closeSignUp,
     closeLogIn,
-    closeVerifyEmail,
-  } = useAuthContext();
+    switchToLogIn,
+    switchToSignUp,
+    handleLogin,
+  } = useAuthModals();
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {

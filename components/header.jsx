@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Nunito } from "next/font/google";
-import { useAuthContext } from './AuthContext';
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -13,9 +12,12 @@ const nunito = Nunito({
 
 export default function Header({
   currentPage = "home",
+  isLoggedIn,
+  onLoginOpen,
+  onSignUpOpen,
+  onLogout,
   onNavigate,
 }) {
-  const { isLoggedIn, openLogIn, openSignUp, logOut } = useAuthContext();
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -94,7 +96,7 @@ export default function Header({
               e.preventDefault();
               if (!isLoggedIn) {
                 sessionStorage.setItem("postLoginAction", "report");
-                openLogIn();
+                onLoginOpen();
               } else {
                 handleNavigation("report");
               }
@@ -145,7 +147,7 @@ export default function Header({
                 </Button>
               )}
               <Button
-                onClick={logOut}
+                onClick={onLogout}
                 variant="outline"
                 className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
               >
@@ -156,13 +158,13 @@ export default function Header({
             <>
               <Button
                 variant="outline"
-                onClick={openSignUp}
+                onClick={onSignUpOpen}
                 className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
               >
                 Sign Up
               </Button>
               <Button
-                onClick={openLogIn}
+                onClick={onLoginOpen}
                 className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
               >
                 Log In

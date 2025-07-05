@@ -7,7 +7,7 @@ import Footer from "@/components/footer"
 import { AuthModals } from "@/components/auth-modals"
 import UserDashboard from "@/components/user-dashboard"
 import { useRouter } from "next/navigation"
-import { useAuthContext } from "@/components/AuthContext";
+import { useAuthModals } from "@/hooks/useAuthModals";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -16,30 +16,21 @@ const nunito = Nunito({
 })
 
 export default function DashboardPage() {
-  const router = useRouter()
-  
+  const router = useRouter();
   const {
-    user,
     isLoggedIn,
-    isLoading,
-    errors,
-    showSignUp,
-    showLogIn,
-    showVerifyEmail,
-    pendingVerificationUser,
-    resentSuccess,
-    resentError,
-    signUp,
-    logIn,
-    googleAuth,
-    resendVerificationEmail,
-    logOut,
-    openSignUp,
+    user,
     openLogIn,
+    openSignUp,
+    handleLogout,
+    isSignUpOpen,
+    isLogInOpen,
     closeSignUp,
     closeLogIn,
-    closeVerifyEmail,
-  } = useAuthContext();
+    switchToLogIn,
+    switchToSignUp,
+    handleLogin,
+  } = useAuthModals();
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {
