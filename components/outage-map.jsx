@@ -112,7 +112,7 @@ export default function OutageMap() {
           <h3 class="font-bold text-lg">${outage.type}</h3>
           <p class="text-gray-700">${outage.description}</p>
           <p class="text-sm text-gray-500 mt-1">Location: ${outage.locality || 'Not specified'}</p>
-          <p class="text-sm text-gray-500">Reported: ${outage.timestamp ? new Date(outage.timestamp).toLocaleString() : 'Unknown'}</p>
+          <p class="text-sm text-gray-500">Reported: ${new Date(outage.timestamp).toLocaleString()}</p>
         </div>
       `);
 

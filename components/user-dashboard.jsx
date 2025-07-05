@@ -1,29 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bell, Settings, MapPin, Calendar, AlertTriangle, MessageSquare, X } from "lucide-react"
 import dynamic from "next/dynamic";
 import { Textarea } from "@/components/ui/textarea"
-import { useHydration } from "@/hooks/useHydration"
 
 
 const SearchBox = dynamic(() => import("@mapbox/search-js-react").then(mod => mod.SearchBox), {
   ssr: false,
 });
 
-export default function UserDashboard({ user }) {
-  const isHydrated = useHydration();
+export default function UserDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("overview")
   const [showAddLocationModal, setShowAddLocationModal] = useState(false)
   const [newLocation, setNewLocation] = useState({ name: "", address: "" })
   const [notificationSettings, setNotificationSettings] = useState({
-    browser: false,
-    whatsapp: false,
+    browser: true,
+    whatsapp: true,
     email: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [editingLocationId, setEditingLocationId] = useState(null)
   const [locationSuccessMessage, setLocationSuccessMessage] = useState("")
 
@@ -33,48 +33,22 @@ export default function UserDashboard({ user }) {
   const [whatsappOtp, setWhatsappOtp] = useState("")
   const [generatedWhatsappOtp, setGeneratedWhatsappOtp] = useState("")
   const [isVerifyingWhatsApp, setIsVerifyingWhatsApp] = useState(false)
+  const [whatsappVerified, setWhatsappVerified] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
   const [changeNumberErrors, setChangeNumberErrors] = useState({})
   // Add a new state variable for OTP success message
   const [otpSuccessMessage, setOtpSuccessMessage] = useState("")
+  const [showCalendarModal, setShowCalendarModal] = useState(false)
   const [showCalendarPage, setShowCalendarPage] = useState(false)
-  
+
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [locationToDelete, setLocationToDelete] = useState(null)
 
   // Add a new state variable for profile update success message
   const [profileSuccessMessage, setProfileSuccessMessage] = useState("")
 
-  // Add calendar state variables - Use a fixed date to prevent hydration issues
-  const [currentDate, setCurrentDate] = useState(() => new Date(2023, 5, 1)) // June 2023
-
-  // Load user notification preferences on component mount
-  useEffect(() => {
-    if (user?.id && typeof window !== "undefined") {
-      const savedSettings = localStorage.getItem(`notification_settings_${user.id}`)
-      if (savedSettings) {
-        try {
-          const parsedSettings = JSON.parse(savedSettings)
-          setNotificationSettings(parsedSettings)
-        } catch (error) {
-          console.error("Error parsing notification settings:", error)
-          // Set default settings if parsing fails
-          setNotificationSettings({
-            browser: true,
-            whatsapp: false,
-            email: false,
-          })
-        }
-      } else {
-        // Default settings for new users
-        setNotificationSettings({
-          browser: true,
-          whatsapp: false,
-          email: false,
-        })
-      }
-    }
-  }, [user?.id])
+  // Add calendar state variables
+  const [currentDate, setCurrentDate] = useState(new Date(2023, 5, 1)) // June 2023
 
   // Mock data for the dashboard
   const recentReports = [
@@ -292,8 +266,7 @@ export default function UserDashboard({ user }) {
                     for (let i = 0; i < 42; i++) {
                       const day = currentDateObj.getDate()
                       const isCurrentMonth = currentDateObj.getMonth() === month
-                      // Avoid hydration mismatch by not comparing with current date during SSR
-                      const isToday = isHydrated && currentDateObj.toDateString() === new Date().toDateString()
+                      const isToday = currentDateObj.toDateString() === new Date().toDateString()
 
                       // Check if this date has outages (sample data for June 2023)
                       const hasOutage =
@@ -765,17 +738,10 @@ export default function UserDashboard({ user }) {
   }
 
   const handleToggleNotification = (type) => {
-    const newSettings = {
-      ...notificationSettings,
-      [type]: !notificationSettings[type],
-    }
-    
-    setNotificationSettings(newSettings)
-    
-    // Save to localStorage for persistence
-    if (user?.id && typeof window !== "undefined") {
-      localStorage.setItem(`notification_settings_${user.id}`, JSON.stringify(newSettings))
-    }
+    setNotificationSettings((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }))
   }
 
   const handleSaveNotificationSettings = async () => {
@@ -783,12 +749,6 @@ export default function UserDashboard({ user }) {
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      
-      // Save to localStorage
-      if (user?.id && typeof window !== "undefined") {
-        localStorage.setItem(`notification_settings_${user.id}`, JSON.stringify(notificationSettings))
-      }
-      
       console.log("Notification settings saved:", notificationSettings)
       alert("Notification settings saved successfully!")
     } catch (error) {
@@ -2047,19 +2007,6 @@ export default function UserDashboard({ user }) {
               <div>
                 <h2 className="text-xl font-semibold text-[#1F2937] mb-6">Notification Settings</h2>
 
-                {/* Current settings overview */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-medium text-blue-900 mb-2">Current Settings</h3>
-                  <div className="text-sm text-blue-800">
-                    {Object.entries(notificationSettings).map(([key, value]) => (
-                      <span key={key} className="inline-flex items-center mr-4 mb-1">
-                        <span className={`w-2 h-2 rounded-full mr-2 ${value ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                        {key.charAt(0).toUpperCase() + key.slice(1)}: {value ? 'Enabled' : 'Disabled'}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
                 <div className="space-y-6">
                   <div className="border rounded-lg p-4">
                     <div className="flex items-center justify-between">
@@ -2072,10 +2019,7 @@ export default function UserDashboard({ user }) {
                           <p className="text-sm text-gray-600">Receive alerts directly in your browser</p>
                         </div>
                       </div>
-                      <div 
-                        className="relative inline-block w-12 h-6 rounded-full bg-gray-200 cursor-pointer"
-                        onClick={() => handleToggleNotification("browser")}
-                      >
+                      <div className="relative inline-block w-12 h-6 rounded-full bg-gray-200">
                         <input
                           type="checkbox"
                           className="opacity-0 w-0 h-0"
@@ -2083,12 +2027,13 @@ export default function UserDashboard({ user }) {
                           onChange={() => handleToggleNotification("browser")}
                         />
                         <span
-                          className={`absolute top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
+                          onClick={() => handleToggleNotification("browser")}
+                          className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
                             notificationSettings.browser ? "bg-[#4F46E5]" : "bg-gray-300"
                           }`}
                         ></span>
                         <span
-                          className={`absolute w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
+                          className={`absolute cursor-pointer w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
                             notificationSettings.browser ? "transform translate-x-7" : "transform translate-x-1"
                           }`}
                         ></span>
@@ -2107,10 +2052,7 @@ export default function UserDashboard({ user }) {
                           <p className="text-sm text-gray-600">Receive alerts via WhatsApp messages</p>
                         </div>
                       </div>
-                      <div 
-                        className="relative inline-block w-12 h-6 rounded-full bg-gray-200 cursor-pointer"
-                        onClick={() => handleToggleNotification("whatsapp")}
-                      >
+                      <div className="relative inline-block w-12 h-6 rounded-full bg-gray-200">
                         <input
                           type="checkbox"
                           className="opacity-0 w-0 h-0"
@@ -2118,12 +2060,13 @@ export default function UserDashboard({ user }) {
                           onChange={() => handleToggleNotification("whatsapp")}
                         />
                         <span
-                          className={`absolute top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
+                          onClick={() => handleToggleNotification("whatsapp")}
+                          className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
                             notificationSettings.whatsapp ? "bg-[#4F46E5]" : "bg-gray-300"
                           }`}
                         ></span>
                         <span
-                          className={`absolute w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
+                          className={`absolute cursor-pointer w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
                             notificationSettings.whatsapp ? "transform translate-x-7" : "transform translate-x-1"
                           }`}
                         ></span>
@@ -2162,10 +2105,7 @@ export default function UserDashboard({ user }) {
                           <p className="text-sm text-gray-600">Receive alerts via email</p>
                         </div>
                       </div>
-                      <div 
-                        className="relative inline-block w-12 h-6 rounded-full bg-gray-200 cursor-pointer"
-                        onClick={() => handleToggleNotification("email")}
-                      >
+                      <div className="relative inline-block w-12 h-6 rounded-full bg-gray-200">
                         <input
                           type="checkbox"
                           className="opacity-0 w-0 h-0"
@@ -2173,12 +2113,13 @@ export default function UserDashboard({ user }) {
                           onChange={() => handleToggleNotification("email")}
                         />
                         <span
-                          className={`absolute top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
+                          onClick={() => handleToggleNotification("email")}
+                          className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
                             notificationSettings.email ? "bg-[#4F46E5]" : "bg-gray-300"
                           }`}
                         ></span>
                         <span
-                          className={`absolute w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
+                          className={`absolute cursor-pointer w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
                             notificationSettings.email ? "transform translate-x-7" : "transform translate-x-1"
                           }`}
                         ></span>
@@ -2640,7 +2581,7 @@ export default function UserDashboard({ user }) {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                     />
                   </svg>
                   <div>

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import Footer from "@/components/footer"
-import Header from "@/components/header"
 import { AuthModals } from "@/components/auth-modals"
 import { Nunito } from "next/font/google"
+import { useState } from "react"
+import Header from "@/components/header"
 import { useRouter } from "next/navigation"
 import { useAuthModals } from "@/hooks/useAuthModals"
 
@@ -20,7 +21,7 @@ export default function ContactPage() {
   const router = useRouter()
 
   const {
-    isSignUpOpen, isLogInOpen, isLoggedIn,
+    isSignUpOpen, isLogInOpen, isLoggedIn, user,
     openSignUp, openLogIn, closeSignUp, closeLogIn,
     switchToLogIn, switchToSignUp, handleLogin, handleLogout
   } = useAuthModals()  
@@ -53,7 +54,7 @@ export default function ContactPage() {
           <div className="text-center mb-16">
             <h1 className={`text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1F2937] mb-6 ${nunito.className}`}>Contact <span className="text-[#4F46E5]">Us</span></h1>
             <p className="text-xl sm:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-              Have questions or need support? We&apos;re here to help. Reach out to us and we&apos;ll get back to you as soon as possible.
+              Have questions or need support? We're here to help. Reach out to us and we'll get back to you as soon as possible.
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">

@@ -6,6 +6,7 @@ import { Nunito } from "next/font/google"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
 import { AuthModals } from "@/components/auth-modals"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthModals } from "@/hooks/useAuthModals"
 
@@ -19,7 +20,7 @@ const nunito = Nunito({
 export default function AboutPage() {
   const router = useRouter()
   const {
-    isSignUpOpen, isLogInOpen, isLoggedIn,
+    isSignUpOpen, isLogInOpen, isLoggedIn, user,
     openSignUp, openLogIn, closeSignUp, closeLogIn,
     switchToLogIn, switchToSignUp, handleLogin, handleLogout
   } = useAuthModals()
@@ -105,7 +106,7 @@ export default function AboutPage() {
                 </div>
                 <h3 className="text-xl font-bold text-[#1F2937] mb-4">Real-Time Reporting</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Report outages instantly and see real-time updates from your community. No more wondering if it&apos;s
+                  Report outages instantly and see real-time updates from your community. No more wondering if it's
                   just your house or the whole neighborhood.
                 </p>
               </div>
@@ -223,7 +224,7 @@ export default function AboutPage() {
                 <div>
                   <h3 className="text-xl font-bold text-[#1F2937] mb-3">Privacy First</h3>
                   <p className="text-gray-600 leading-relaxed">
-                    Your data is yours. We collect only what&apos;s necessary to provide our service and never sell
+                    Your data is yours. We collect only what's necessary to provide our service and never sell
                     personal information.
                   </p>
                 </div>
