@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Eye, EyeOff, Mail, Lock, User, AlertTriangle } from "lucide-react"
-import { useAuthModals } from "@/hooks/useAuthModals"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Google Icon Component
 const GoogleIcon = ({ className = "w-5 h-5" }) => (
@@ -28,16 +28,10 @@ const GoogleIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 )
 
-export function AuthModals({
-  isSignUpOpen,
-  isLogInOpen,
-  onCloseSignUp,
-  onCloseLogIn,
-  onSwitchToLogIn,
-  onSwitchToSignUp,
-  onLogin,
-}) {
+export function AuthModals() {
   const {
+    isSignUpOpen,
+    isLogInOpen,
     showVerifyEmail,
     isLoading,
     errors,
@@ -48,8 +42,14 @@ export function AuthModals({
     handleLogIn,
     handleGoogleAuth,
     handleResendVerificationEmail,
-    resetAuthState,
-  } = useAuthModals();
+    closeSignUp,
+    closeLogIn,
+    switchToLogIn,
+    switchToSignUp,
+    handleForgotPassword,
+    forgotPasswordSuccess,
+    forgotPasswordError,
+  } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -64,6 +64,38 @@ export function AuthModals({
     password: "",
   })
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotResendTimer, setForgotResendTimer] = useState(0)
+
+  // Start resend timer after successful reset
+  useEffect(() => {
+    if (forgotPasswordSuccess) {
+      setForgotResendTimer(60);
+      const timer = setInterval(() => {
+        setForgotResendTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [forgotPasswordSuccess]);
+
+  // Reset forgot password state when modals open/close
+  useEffect(() => {
+    if (!isLogInOpen && !isSignUpOpen) {
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    }
+    if (isLogInOpen) {
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    }
+  }, [isLogInOpen, isSignUpOpen]);
 
   // Handle form input changes
   const handleSignUpChange = (e) => {
@@ -94,33 +126,31 @@ export function AuthModals({
   }
 
   const handleCloseSignUp = () => {
-    onCloseSignUp()
+    closeSignUp()
     setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
     setShowPassword(false)
     setShowConfirmPassword(false)
     setIsTransitioning(false)
-    resetAuthState()
   }
 
   const handleCloseLogIn = () => {
-    onCloseLogIn()
+    closeLogIn()
     setLogInData({ email: "", password: "" })
     setShowPassword(false)
     setIsTransitioning(false)
   }
 
   const handleSwitchToLogIn = () => {
-    onSwitchToLogIn()
+    switchToLogIn()
     setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
     setLogInData({ email: "", password: "" })
     setShowPassword(false)
     setShowConfirmPassword(false)
     setIsTransitioning(false)
-    resetAuthState()
   }
 
   const handleSwitchToSignUp = () => {
-    onSwitchToSignUp()
+    switchToSignUp()
     setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
     setLogInData({ email: "", password: "" })
     setShowPassword(false)
@@ -131,9 +161,9 @@ export function AuthModals({
   // Ensure only one modal is open at a time
   useEffect(() => {
     if (isSignUpOpen && isLogInOpen) {
-      onCloseLogIn()
+      closeLogIn()
     }
-  }, [isSignUpOpen, isLogInOpen, onCloseLogIn])
+  }, [isSignUpOpen, isLogInOpen, closeLogIn])
 
   // If neither modal is open, don't render anything
   if (!isSignUpOpen && !isLogInOpen) return null
@@ -402,7 +432,7 @@ export function AuthModals({
                 onClick={() => {
                   handleCloseSignUp()
                   setTimeout(() => {
-                    onSwitchToLogIn()
+                    switchToLogIn()
                   }, 100)
                 }}
                 className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg"
@@ -436,7 +466,7 @@ export function AuthModals({
         )}
 
         {/* LogIn Modal */}
-        {isLogInOpen && (
+        {isLogInOpen && !showForgotPassword && (
           <div className={`p-6 sm:p-8 slide-transition ${isTransitioning ? 'slide-out-left' : 'slide-in-right'}`}>
             {/* Header */}
             <div className="relative mb-6 h-10">
@@ -536,6 +566,7 @@ export function AuthModals({
                   type="button"
                   disabled={isLoading}
                   className="text-sm text-[#4F46E5] hover:underline disabled:opacity-50"
+                  onClick={() => setShowForgotPassword(true)}
                 >
                   Forgot Password?
                 </button>
@@ -570,6 +601,75 @@ export function AuthModals({
                   Sign Up
                 </button>
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Forgot Password Modal */}
+        {isLogInOpen && showForgotPassword && (
+          <div className="p-6 sm:p-8 slide-transition">
+            <div className="relative mb-6 h-10">
+              <h2 className="absolute left-1/2 transform -translate-x-1/2 text-2xl sm:text-3xl font-bold text-[#1F2937] text-center w-full">Reset Password</h2>
+              <button
+                onClick={handleCloseLogIn}
+                disabled={isLoading}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await handleForgotPassword(forgotEmail);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label htmlFor="forgot-email" className="block text-sm font-medium text-[#1F2937] mb-2 text-left">
+                  Enter your email address
+                </label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  name="forgot-email"
+                  placeholder="Enter your email"
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  disabled={isLoading}
+                  className="h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none text-left placeholder:text-left"
+                />
+              </div>
+              {forgotPasswordError && <p className="text-red-500 text-sm mt-1 text-center">{forgotPasswordError}</p>}
+              {forgotPasswordSuccess && <p className="text-green-600 text-sm mt-1 text-center">{forgotPasswordSuccess}</p>}
+              <div className="flex flex-col items-center">
+                <Button
+                  type="submit"
+                  disabled={isLoading || !forgotEmail || forgotResendTimer > 0}
+                  className={`w-full h-12 font-semibold text-lg mt-2 disabled:opacity-75 text-center
+                    ${isLoading ? 'bg-[#312e81] text-white' : forgotResendTimer > 0 ? 'bg-[#a5b4fc] text-white' : 'bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white'}`}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending...
+                    </div>
+                  ) : forgotResendTimer > 0 ? (
+                    `Resend Link (${forgotResendTimer}s)`
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </Button>
+              </div>
+            </form>
+            <div className="text-center mt-6">
+              <button
+                onClick={() => setShowForgotPassword(false)}
+                className="text-[#4F46E5] font-semibold hover:underline disabled:opacity-50"
+                disabled={isLoading}
+              >
+                Back to Log In
+              </button>
             </div>
           </div>
         )}

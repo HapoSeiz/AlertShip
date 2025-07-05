@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Nunito } from "next/font/google";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -10,14 +12,9 @@ const nunito = Nunito({
   variable: "--font-nunito",
 });
 
-export default function Header({
-  currentPage = "home",
-  isLoggedIn,
-  onLoginOpen,
-  onSignUpOpen,
-  onLogout,
-  onNavigate,
-}) {
+export default function Header({ currentPage = "home" }) {
+  const { isAuthenticated, signOut, openLogIn, openSignUp } = useAuth();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -37,7 +34,19 @@ export default function Header({
   }, []);
 
   const handleNavigation = (page, scrollTo = null) => {
-    onNavigate(page, scrollTo);
+    if (page === "home") {
+      router.push("/");
+    } else if (page === "about") {
+      router.push("/about");
+    } else if (page === "report") {
+      router.push("/report");
+    } else if (page === "contact") {
+      router.push("/contact");
+    } else if (page === "faqs") {
+      router.push("/faqs");
+    } else if (page === "dashboard") {
+      router.push("/dashboard");
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -94,9 +103,9 @@ export default function Header({
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              if (!isLoggedIn) {
+              if (!isAuthenticated) {
                 sessionStorage.setItem("postLoginAction", "report");
-                onLoginOpen();
+                openLogIn();
               } else {
                 handleNavigation("report");
               }
@@ -133,9 +142,9 @@ export default function Header({
           </a>
         </nav>
 
-        {/* Auth Buttons */}
+                {/* Auth Buttons */}
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {isLoggedIn ? (
+          {isAuthenticated ? (
             <>
               {currentPage !== "dashboard" && (
                 <Button
@@ -147,7 +156,7 @@ export default function Header({
                 </Button>
               )}
               <Button
-                onClick={onLogout}
+                onClick={signOut}
                 variant="outline"
                 className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
               >
@@ -158,13 +167,13 @@ export default function Header({
             <>
               <Button
                 variant="outline"
-                onClick={onSignUpOpen}
+                onClick={openSignUp}
                 className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
               >
                 Sign Up
               </Button>
               <Button
-                onClick={onLoginOpen}
+                onClick={openLogIn}
                 className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
               >
                 Log In

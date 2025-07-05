@@ -7,7 +7,7 @@ import Footer from "@/components/footer"
 import { AuthModals } from "@/components/auth-modals"
 import UserDashboard from "@/components/user-dashboard"
 import { useRouter } from "next/navigation"
-import { useAuthModals } from "@/hooks/useAuthModals";
+import { useAuth } from "@/contexts/AuthContext";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -18,19 +18,10 @@ const nunito = Nunito({
 export default function DashboardPage() {
   const router = useRouter();
   const {
-    isLoggedIn,
     user,
-    openLogIn,
-    openSignUp,
-    handleLogout,
-    isSignUpOpen,
-    isLogInOpen,
-    closeSignUp,
-    closeLogIn,
-    switchToLogIn,
-    switchToSignUp,
-    handleLogin,
-  } = useAuthModals();
+    isAuthenticated,
+    signOut,
+  } = useAuth();
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {
@@ -46,32 +37,17 @@ export default function DashboardPage() {
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}
-      <Header
-        currentPage="dashboard"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
-        onNavigate={handleNavigate}
-      />
+      <Header currentPage="dashboard" />
 
       <div className="pt-24 sm:pt-28 lg:pt-32">
-        <UserDashboard user={user} onLogout={handleLogout} />
+        <UserDashboard user={user} onLogout={signOut} />
       </div>
 
       {/* Footer */}
       <Footer />
 
       {/* Auth Modals - Available on Dashboard */}
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
     </div>
   )
 }

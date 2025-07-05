@@ -7,7 +7,7 @@ import { Calendar, List, Map, X } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
-import { useAuthModals } from "@/hooks/useAuthModals"
+import { useAuth } from "@/contexts/AuthContext";
 import { fetchOutageReportsByCity } from "@/firebase/firestoreHelpers"
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from "date-fns"
 import { Input } from "@/components/ui/input"
@@ -45,11 +45,8 @@ export default function OutagesPage() {
   }, [location]);
 
   const {
-      isSignUpOpen, isLogInOpen, isLoggedIn, user,
-      openSignUp, openLogIn, closeSignUp, closeLogIn,
-      switchToLogIn, switchToSignUp, handleLogin, handleLogout,
-      setUser, setIsLoggedIn
-    } = useAuthModals()
+    isAuthenticated, user, openSignUp, openLogIn, signOut
+  } = useAuth();
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {
@@ -76,10 +73,10 @@ export default function OutagesPage() {
         {/* Header */}
         <Header
           currentPage="outages"
-          isLoggedIn={isLoggedIn}
+          isLoggedIn={isAuthenticated}
           onLoginOpen={openLogIn}
           onSignUpOpen={openSignUp}
-          onLogout={handleLogout}
+          onLogout={signOut}
           onNavigate={(page) => router.push(page === 'home' ? '/' : `/${page}`)}
         />
 
@@ -282,7 +279,7 @@ export default function OutagesPage() {
                   </div>
                   <Button
                     onClick={() => {
-                      if (isLoggedIn) {
+                      if (isAuthenticated) {
                           setShowNotificationModal(true)
                       } else {
                           openLogIn()
@@ -301,7 +298,7 @@ export default function OutagesPage() {
         <NotificationModal
               isOpen={showNotificationModal}
               onClose={() => setShowNotificationModal(false)}
-              isLoggedIn={isLoggedIn}
+              isLoggedIn={isAuthenticated}
               onOpenLogin={openLogIn}
             />
       </div>
@@ -312,14 +309,7 @@ export default function OutagesPage() {
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}
-      <Header
-        currentPage="outages"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
-        onNavigate={handleNavigate}
-      />
+      <Header currentPage="outages" />
 
       {/* Main Content */}
       <main className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12">
@@ -344,7 +334,7 @@ export default function OutagesPage() {
 
               <Button
                 onClick={() => {
-                  if (!isLoggedIn) {
+                  if (!isAuthenticated) {
                     openLogIn();
                   } else {
                     router.push("/report")
@@ -352,7 +342,7 @@ export default function OutagesPage() {
                 }}
                 className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white"
               >
-                {!isLoggedIn ? "Login to Report" : "Report New Issue"}
+                {!isAuthenticated ? "Login to Report" : "Report New Issue"}
               </Button>
             </div>
           </div>
@@ -614,15 +604,7 @@ export default function OutagesPage() {
 
       {/* Footer */}
       <Footer />
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
 
     </div>
   )
