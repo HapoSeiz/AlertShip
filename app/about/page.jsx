@@ -8,7 +8,7 @@ import Header from "@/components/header"
 import { AuthModals } from "@/components/auth-modals"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuthModals } from "@/hooks/useAuthModals"
+import { useAuth } from "@/contexts/AuthContext";
 
 
 const nunito = Nunito({
@@ -18,12 +18,14 @@ const nunito = Nunito({
 })
 
 export default function AboutPage() {
-  const router = useRouter()
+  const router = useRouter();
   const {
-    isSignUpOpen, isLogInOpen, isLoggedIn, user,
-    openSignUp, openLogIn, closeSignUp, closeLogIn,
-    switchToLogIn, switchToSignUp, handleLogin, handleLogout
-  } = useAuthModals()
+    isAuthenticated,
+    user,
+    openLogIn,
+    openSignUp,
+    signOut,
+  } = useAuth();
 
   // Navigation handler for hyperlinks
   const handleNavigate = (page) => {
@@ -41,11 +43,6 @@ export default function AboutPage() {
       {/* Header */}
       <Header
         currentPage="about"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
-        onNavigate={handleNavigate}
       />
 
       {/* Main Content */}
@@ -326,15 +323,7 @@ export default function AboutPage() {
       <Footer onNavigate={() => {}} />
 
       {/* Auth Modals - Available on About Page */}
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
     </div>
   )
 }

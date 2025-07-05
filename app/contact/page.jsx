@@ -9,7 +9,7 @@ import { Nunito } from "next/font/google"
 import { useState } from "react"
 import Header from "@/components/header"
 import { useRouter } from "next/navigation"
-import { useAuthModals } from "@/hooks/useAuthModals"
+import { useAuth } from "@/contexts/AuthContext";
 
 const nunito = Nunito({ 
   subsets: ["latin"],
@@ -18,13 +18,14 @@ const nunito = Nunito({
 })
 
 export default function ContactPage() {
-  const router = useRouter()
-
+  const router = useRouter();
   const {
-    isSignUpOpen, isLogInOpen, isLoggedIn, user,
-    openSignUp, openLogIn, closeSignUp, closeLogIn,
-    switchToLogIn, switchToSignUp, handleLogin, handleLogout
-  } = useAuthModals()  
+    isAuthenticated,
+    user,
+    openLogIn,
+    openSignUp,
+    signOut,
+  } = useAuth();
 
   const handleNavigate = (page) => {
     if (page === "home") router.push("/")
@@ -39,14 +40,7 @@ export default function ContactPage() {
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}
-      <Header
-        currentPage="contact"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
-        onNavigate={handleNavigate}
-      />  
+      <Header currentPage="contact" />
 
       <main className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12">
         <div className="max-w-7xl mx-auto">
@@ -137,15 +131,7 @@ export default function ContactPage() {
         </div>
       </main>
       <Footer onNavigate={() => {}} />
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
     </div>
   )
 }

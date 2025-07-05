@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Playfair_Display } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -24,7 +25,11 @@ export default function RootLayout({
       <head>
         <link rel="icon" type="image/png" href="/alertshipfinallogo.png" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }

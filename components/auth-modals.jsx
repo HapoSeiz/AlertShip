@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { X, Eye, EyeOff, Mail, Lock, User, Shield, AlertTriangle } from "lucide-react"
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { app } from '@/firebase/firebase';
+import { X, Eye, EyeOff, Mail, Lock, User, AlertTriangle } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Google Icon Component
 const GoogleIcon = ({ className = "w-5 h-5" }) => (
@@ -29,83 +28,29 @@ const GoogleIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 )
 
-// Disposable email domains list (common ones)
-const disposableEmailDomains = [
-  "10minutemail.com",
-  "10minutemail.net",
-  "20minutemail.com",
-  "2prong.com",
-  "guerrillamail.com",
-  "guerrillamail.net",
-  "guerrillamail.org",
-  "guerrillamail.biz",
-  "mailinator.com",
-  "mailinator.net",
-  "mailinator.org",
-  "mailinator2.com",
-  "tempmail.org",
-  "temp-mail.org",
-  "throwaway.email",
-  "yopmail.com",
-  "maildrop.cc",
-  "sharklasers.com",
-  "grr.la",
-  "guerrillamailblock.com",
-  "pokemail.net",
-  "spam4.me",
-  "bccto.me",
-  "chacuo.net",
-  "dispostable.com",
-  "emailondeck.com",
-  "fakeinbox.com",
-  "hide.biz.st",
-  "mytrashmail.com",
-  "mailnesia.com",
-  "trashmail.at",
-  "trashmail.com",
-  "trashmail.me",
-  "trashmail.net",
-  "trashmail.org",
-  "wegwerfmail.de",
-  "wegwerfmail.net",
-  "wegwerfmail.org",
-  "0-mail.com",
-  "0815.ru",
-  "10mail.org",
-  "123-m.com",
-  "1chuan.com",
-  "1pad.de",
-  "20email.eu",
-  "2fdgdfgdfgdf.tk",
-  "2prong.com",
-  "30minutemail.com",
-  "3d-painting.com",
-  "4warding.com",
-  "4warding.net",
-  "4warding.org",
-  "60minutemail.com",
-  "675hosting.com",
-  "675hosting.net",
-  "675hosting.org",
-  "6url.com",
-  "75hosting.com",
-  "75hosting.net",
-  "75hosting.org",
-  "7tags.com",
-  "9ox.net",
-  "a-bc.net",
-  "afrobacon.com",
-]
+export function AuthModals() {
+  const {
+    isSignUpOpen,
+    isLogInOpen,
+    showVerifyEmail,
+    isLoading,
+    errors,
+    resendTimer,
+    resentSuccess,
+    resentError,
+    handleSignUp,
+    handleLogIn,
+    handleGoogleAuth,
+    handleResendVerificationEmail,
+    closeSignUp,
+    closeLogIn,
+    switchToLogIn,
+    switchToSignUp,
+    handleForgotPassword,
+    forgotPasswordSuccess,
+    forgotPasswordError,
+  } = useAuth();
 
-export function AuthModals({
-  isSignUpOpen,
-  isLogInOpen,
-  onCloseSignUp,
-  onCloseLogIn,
-  onSwitchToLogIn,
-  onSwitchToSignUp,
-  onLogin,
-}) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [signUpData, setSignUpData] = useState({
@@ -118,286 +63,127 @@ export function AuthModals({
     email: "",
     password: "",
   })
-  const [errors, setErrors] = useState({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [showOtpVerification, setShowOtpVerification] = useState(false)
-  const [otp, setOtp] = useState("")
-  const [generatedOtp, setGeneratedOtp] = useState("")
-  const [otpSent, setOtpSent] = useState(false)
-  const [resendTimer, setResendTimer] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotResendTimer, setForgotResendTimer] = useState(0)
 
-  // Check if email is disposable
-  const isDisposableEmail = (email) => {
-    if (!email || !email.includes("@")) return false
-    const domain = email.split("@")[1]?.toLowerCase()
-    return disposableEmailDomains.includes(domain)
+  // Start resend timer after successful reset
+  useEffect(() => {
+    if (forgotPasswordSuccess) {
+      setForgotResendTimer(60);
+      const timer = setInterval(() => {
+        setForgotResendTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [forgotPasswordSuccess]);
+
+  // Reset forgot password state when modals open/close
+  useEffect(() => {
+    if (!isLogInOpen && !isSignUpOpen) {
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    }
+    if (isLogInOpen) {
+      setShowForgotPassword(false);
+      setForgotEmail("");
+    }
+  }, [isLogInOpen, isSignUpOpen]);
+
+  // Handle form input changes
+  const handleSignUpChange = (e) => {
+    setSignUpData({ ...signUpData, [e.target.name]: e.target.value })
   }
 
-  // Generate random 6-digit OTP
-  const generateOtp = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString()
+  const handleLogInChange = (e) => {
+    setLogInData({ ...logInData, [e.target.name]: e.target.value })
   }
 
-  // Send OTP (simulated)
-  const sendOtp = async (email) => {
-    const newOtp = generateOtp()
-    setGeneratedOtp(newOtp)
-
-    // Simulate sending email
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // In real implementation, you would send email here
-    console.log(`OTP sent to ${email}: ${newOtp}`)
-    alert(`OTP sent to your email! (For demo: ${newOtp})`)
-
-    setOtpSent(true)
-    startResendTimer()
-  }
-
-  // Start resend timer
-  const startResendTimer = () => {
-    setResendTimer(60)
-    const timer = setInterval(() => {
-      setResendTimer((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }
-
-  const validateSignUp = () => {
-    const newErrors = {}
-
-    if (!signUpData.name.trim()) {
-      newErrors.name = "Name is required"
-    }
-
-    if (!signUpData.email.trim()) {
-      newErrors.email = "Email is required"
-    } else if (!/\S+@\S+\.\S+/.test(signUpData.email)) {
-      newErrors.email = "Email is invalid"
-    } else if (isDisposableEmail(signUpData.email)) {
-      newErrors.email = "Disposable emails are not allowed. Please use a permanent email address."
-    }
-
-    if (!signUpData.password) {
-      newErrors.password = "Password is required"
-    } else if (signUpData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters"
-    }
-
-    if (signUpData.password !== signUpData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const validateLogIn = () => {
-    const newErrors = {}
-
-    if (!logInData.email.trim()) {
-      newErrors.email = "Email is required"
-    } else if (!/\S+@\S+\.\S+/.test(logInData.email)) {
-      newErrors.email = "Email is invalid"
-    }
-
-    if (!logInData.password) {
-      newErrors.password = "Password is required"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const validateOtp = () => {
-    if (!otp.trim()) {
-      setErrors({ otp: "OTP is required" })
-      return false
-    }
-    if (otp.length !== 6) {
-      setErrors({ otp: "OTP must be 6 digits" })
-      return false
-    }
-    if (otp !== generatedOtp) {
-      setErrors({ otp: "Invalid OTP. Please try again." })
-      return false
-    }
-    setErrors({})
-    return true
-  }
-
-  const handleGoogleAuth = async (isSignUp = false) => {
-    setIsLoading(true)
-    try {
-      const auth = getAuth(app)
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      const idToken = await result.user.getIdToken()
-      // Send the ID token to your backend
-      const res = await fetch('/api/auth-google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        onLogin({ email: result.user.email, id: result.user.uid, name: result.user.displayName })
-        resetForms()
-        alert('Google signup successful!')
-      } else {
-        alert(data.error || 'Google signup failed')
-      }
-    } catch (error) {
-      alert('Google signup failed')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSignUp = async (e) => {
+  // Handle form submissions
+  const handleSignUpSubmit = async (e) => {
     e.preventDefault()
-    if (validateSignUp()) {
-      setIsLoading(true)
-      try {
-        // Call backend to create user
-        const res = await fetch('/api/auth-signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: signUpData.email,
-            password: signUpData.password,
-          }),
-        })
-        const data = await res.json()
-        if (data.success) {
-          onLogin({ email: signUpData.email, id: data.user.uid, name: signUpData.name })
-          resetForms()
-          alert('Signup successful!')
-        } else {
-          alert(data.error || 'Signup failed')
-        }
-      } catch (error) {
-        alert('Signup failed')
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    await handleSignUp(signUpData, setIsTransitioning)
   }
 
-  const handleOtpVerification = async (e) => {
+  const handleLogInSubmit = async (e) => {
     e.preventDefault()
-    if (validateOtp()) {
-      setIsLoading(true)
-      try {
-        // Simulate account creation
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const userData = {
-          name: signUpData.name,
-          email: signUpData.email,
-          id: "user_" + Date.now(),
-        }
-
-        onLogin(userData)
-        resetForms()
-      } catch (error) {
-        alert("Account creation failed. Please try again.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    await handleLogIn(logInData)
   }
 
-  const handleResendOtp = async () => {
-    if (resendTimer > 0) return
-
-    setIsLoading(true)
-    try {
-      await sendOtp(signUpData.email)
-    } catch (error) {
-      alert("Failed to resend OTP. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
+  const handleGoogleSignIn = async (isSignUp) => {
+    await handleGoogleAuth(isSignUp)
   }
 
-  const handleLogIn = async (e) => {
-    e.preventDefault()
-    if (validateLogIn()) {
-      setIsLoading(true)
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const userData = {
-          name: "John Doe",
-          email: logInData.email,
-          id: "user_" + Date.now(),
-        }
-
-        onLogin(userData)
-        resetForms()
-      } catch (error) {
-        alert("Login failed. Please try again.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-  }
-
-  const resetForms = () => {
-    setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
-    setLogInData({ email: "", password: "" })
-    setErrors({})
-    setShowPassword(false)
-    setShowConfirmPassword(false)
-    setIsLoading(false)
-    setShowOtpVerification(false)
-    setOtp("")
-    setGeneratedOtp("")
-    setOtpSent(false)
-    setResendTimer(0)
+  const handleResend = async () => {
+    await handleResendVerificationEmail()
   }
 
   const handleCloseSignUp = () => {
-    onCloseSignUp()
-    resetForms()
+    closeSignUp()
+    setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+    setIsTransitioning(false)
   }
 
   const handleCloseLogIn = () => {
-    onCloseLogIn()
-    resetForms()
+    closeLogIn()
+    setLogInData({ email: "", password: "" })
+    setShowPassword(false)
+    setIsTransitioning(false)
   }
 
   const handleSwitchToLogIn = () => {
-    onSwitchToLogIn()
-    resetForms()
+    switchToLogIn()
+    setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
+    setLogInData({ email: "", password: "" })
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+    setIsTransitioning(false)
   }
 
   const handleSwitchToSignUp = () => {
-    onSwitchToSignUp()
-    resetForms()
+    switchToSignUp()
+    setSignUpData({ name: "", email: "", password: "", confirmPassword: "" })
+    setLogInData({ email: "", password: "" })
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+    setIsTransitioning(false)
   }
 
-  const handleBackToSignUp = () => {
-    setShowOtpVerification(false)
-    setOtp("")
-    setGeneratedOtp("")
-    setOtpSent(false)
-    setResendTimer(0)
-    setErrors({})
-  }
+  // Ensure only one modal is open at a time
+  useEffect(() => {
+    if (isSignUpOpen && isLogInOpen) {
+      closeLogIn()
+    }
+  }, [isSignUpOpen, isLogInOpen, closeLogIn])
 
   // If neither modal is open, don't render anything
   if (!isSignUpOpen && !isLogInOpen) return null
 
+  // Add a handler for clicking the backdrop
+  const handleBackdropClick = (e) => {
+    // Only close if the click is directly on the backdrop (not inside the modal)
+    if (e.target === e.currentTarget) {
+      if (isSignUpOpen && !showVerifyEmail) {
+        handleCloseSignUp();
+      } else if (isLogInOpen) {
+        handleCloseLogIn();
+      } else if (isSignUpOpen && showVerifyEmail) {
+        handleCloseSignUp();
+      }
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={handleBackdropClick}>
       <style jsx global>{`
         .hide-scrollbar {
           -ms-overflow-style: none;  /* IE and Edge */
@@ -406,17 +192,26 @@ export function AuthModals({
         .hide-scrollbar::-webkit-scrollbar {
           display: none;  /* Chrome, Safari and Opera */
         }
+        .slide-transition {
+          transition: transform 0.5s ease-in-out;
+        }
+        .slide-out-left {
+          transform: translateX(-100%);
+        }
+        .slide-in-right {
+          transform: translateX(0);
+        }  
       `}</style>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto hide-scrollbar">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto hide-scrollbar relative" onClick={e => e.stopPropagation()}>
         {/* Sign Up Modal */}
-        {isSignUpOpen && !showOtpVerification && (
-          <div className="p-6 sm:p-8">
+        {isSignUpOpen && !showVerifyEmail && (
+          <div className={`p-6 sm:p-8 slide-transition ${isTransitioning ? 'slide-out-left' : 'slide-in-right'}`}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">Sign Up</h2>
+            <div className="relative mb-6 h-10">
+              <h2 className="absolute left-1/2 transform -translate-x-1/2 text-2xl sm:text-3xl font-bold text-[#1F2937]">Sign Up</h2>
               <button
                 onClick={handleCloseSignUp}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
                 disabled={isLoading}
               >
                 <X className="w-5 h-5 text-gray-500" />
@@ -426,7 +221,7 @@ export function AuthModals({
             {/* Google Sign Up Button */}
             <Button
               type="button"
-              onClick={() => handleGoogleAuth(true)}
+              onClick={() => handleGoogleSignIn(true)}
               disabled={isLoading}
               className="w-full h-12 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 font-semibold mb-6 flex items-center justify-center gap-3"
             >
@@ -449,7 +244,7 @@ export function AuthModals({
             </div>
 
             {/* Sign Up Form */}
-            <form onSubmit={handleSignUp} className="space-y-4">
+            <form onSubmit={handleSignUpSubmit} className="space-y-4">
               {/* Name Field */}
               <div>
                 <label htmlFor="signup-name" className="block text-sm font-medium text-[#1F2937] mb-2">
@@ -460,9 +255,10 @@ export function AuthModals({
                   <Input
                     id="signup-name"
                     type="text"
+                    name="name"
                     placeholder="Enter your full name"
                     value={signUpData.name}
-                    onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
+                    onChange={handleSignUpChange}
                     disabled={isLoading}
                     className={`pl-10 h-12 border-2 ${errors.name ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
                   />
@@ -480,9 +276,10 @@ export function AuthModals({
                   <Input
                     id="signup-email"
                     type="email"
+                    name="email"
                     placeholder="Enter your email"
                     value={signUpData.email}
-                    onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                    onChange={handleSignUpChange}
                     disabled={isLoading}
                     className={`pl-10 h-12 border-2 ${errors.email ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
                   />
@@ -509,9 +306,10 @@ export function AuthModals({
                   <Input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
+                    name="password"
                     placeholder="Create a password"
                     value={signUpData.password}
-                    onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                    onChange={handleSignUpChange}
                     disabled={isLoading}
                     className={`pl-10 pr-10 h-12 border-2 ${errors.password ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
                   />
@@ -537,9 +335,10 @@ export function AuthModals({
                   <Input
                     id="signup-confirm-password"
                     type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
                     placeholder="Confirm your password"
                     value={signUpData.confirmPassword}
-                    onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                    onChange={handleSignUpChange}
                     disabled={isLoading}
                     className={`pl-10 pr-10 h-12 border-2 ${errors.confirmPassword ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
                   />
@@ -555,11 +354,14 @@ export function AuthModals({
                 {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
               </div>
 
+              {/* General Error */}
+              {errors.general && <p className="text-red-500 text-sm mt-1">{errors.general}</p>}
+
               {/* Submit Button */}
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6 disabled:opacity-50"
+                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6 disabled:opacity-75"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -588,106 +390,91 @@ export function AuthModals({
           </div>
         )}
 
-        {/* OTP Verification Modal */}
-        {isSignUpOpen && showOtpVerification && (
-          <div className="p-6 sm:p-8">
+        {/* Email Verification Modal */}
+        {isSignUpOpen && showVerifyEmail && (
+          <div className={`p-6 sm:p-8 slide-transition ${isTransitioning ? 'slide-out-left' : 'slide-in-right'}`}>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">Verify Email</h2>
-              <button
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#1F2937] text-center w-full">Verify Your Account</h2>
+              {/* <button
                 onClick={handleCloseSignUp}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 disabled={isLoading}
               >
                 <X className="w-5 h-5 text-gray-500" />
-              </button>
+              </button> */}
             </div>
-
-            {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div>
-                  <p className="text-sm text-blue-800">
-                    We've sent a 6-digit verification code to <span className="font-semibold">{signUpData.email}</span>
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">Please check your inbox and enter the code below.</p>
-                </div>
+            {/* Success Icon */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
               </div>
             </div>
-
-            {/* OTP Form */}
-            <form onSubmit={handleOtpVerification} className="space-y-4">
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-[#1F2937] mb-2">
-                  Verification Code
-                </label>
-                <Input
-                  id="otp"
-                  type="text"
-                  placeholder="Enter 6-digit code"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  disabled={isLoading}
-                  className={`h-12 text-center text-lg tracking-widest border-2 ${errors.otp ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
-                  maxLength={6}
-                />
-                {errors.otp && <p className="text-red-500 text-sm mt-1">{errors.otp}</p>}
-              </div>
-
-              {/* Resend OTP */}
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Didn't receive the code?</p>
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={isLoading || resendTimer > 0}
-                  className="text-sm text-[#4F46E5] font-semibold hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Code"}
-                </button>
-              </div>
-
-              {/* Submit Button */}
+            {/* Message */}
+            <div className="text-center mb-8">
+              <p className="text-gray-600 text-lg leading-relaxed">
+                We have sent a link to your email address. Click on it to verify your account and then log in.
+              </p>
+              <p className="text-sm text-gray-500 mt-3">
+                Check your email at <span className="font-semibold text-gray-700">{signUpData.email}</span>
+              </p>
+            </div>
+            {/* Action Buttons */}
+            <div className="space-y-3">
               <Button
-                type="submit"
-                disabled={isLoading || otp.length !== 6}
-                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6 disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Verifying...
-                  </div>
-                ) : (
-                  "Verify & Create Account"
-                )}
-              </Button>
-            </form>
-
-            {/* Back Button */}
-            <div className="text-center mt-6">
-              <button
-                onClick={handleBackToSignUp}
+                onClick={() => {
+                  handleCloseSignUp()
+                  setTimeout(() => {
+                    switchToLogIn()
+                  }, 100)
+                }}
+                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg"
                 disabled={isLoading}
-                className="text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
               >
-                ← Back to Sign Up
+                Go to Log In
+              </Button>
+              <Button
+                onClick={handleCloseSignUp}
+                variant="outline"
+                className="w-full h-12 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold text-lg bg-transparent"
+                disabled={isLoading}
+              >
+                Close
+              </Button>
+            </div>
+            {/* Resend Email */}
+            <div className="text-center mt-6">
+              <p className="text-sm text-gray-600 mb-2">Didn't receive the email?</p>
+              <button
+                onClick={handleResend}
+                className="text-sm text-[#4F46E5] font-semibold hover:underline"
+                disabled={isLoading || resendTimer > 0}
+              >
+                {resendTimer > 0 ? `Resend Email (${resendTimer}s)` : "Resend Email"}
               </button>
+              {resentSuccess && <p className="text-green-600 text-sm mt-2">Verification email resent!</p>}
+              {resentError && <p className="text-red-600 text-sm mt-2">{resentError}</p>}
             </div>
           </div>
         )}
 
-        {/* Log In Modal */}
-        {isLogInOpen && (
-          <div className="p-6 sm:p-8">
+        {/* LogIn Modal */}
+        {isLogInOpen && !showForgotPassword && (
+          <div className={`p-6 sm:p-8 slide-transition ${isTransitioning ? 'slide-out-left' : 'slide-in-right'}`}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">Log In</h2>
+            <div className="relative mb-6 h-10">
+              <h2 className="absolute left-1/2 transform -translate-x-1/2 text-2xl sm:text-3xl font-bold text-[#1F2937]">Log In</h2>
               <button
                 onClick={handleCloseLogIn}
                 disabled={isLoading}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -696,7 +483,7 @@ export function AuthModals({
             {/* Google Log In Button */}
             <Button
               type="button"
-              onClick={() => handleGoogleAuth(false)}
+              onClick={() => handleGoogleSignIn(false)}
               disabled={isLoading}
               className="w-full h-12 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 font-semibold mb-6 flex items-center justify-center gap-3"
             >
@@ -719,7 +506,7 @@ export function AuthModals({
             </div>
 
             {/* Log In Form */}
-            <form onSubmit={handleLogIn} className="space-y-4">
+            <form onSubmit={handleLogInSubmit} className="space-y-4">
               {/* Email Field */}
               <div>
                 <label htmlFor="login-email" className="block text-sm font-medium text-[#1F2937] mb-2">
@@ -730,9 +517,10 @@ export function AuthModals({
                   <Input
                     id="login-email"
                     type="email"
+                    name="email"
                     placeholder="Enter your email"
                     value={logInData.email}
-                    onChange={(e) => setLogInData({ ...logInData, email: e.target.value })}
+                    onChange={handleLogInChange}
                     disabled={isLoading}
                     className={`pl-10 h-12 border-2 ${errors.email ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
                   />
@@ -750,9 +538,10 @@ export function AuthModals({
                   <Input
                     id="login-password"
                     type={showPassword ? "text" : "password"}
+                    name="password"
                     placeholder="Enter your password"
                     value={logInData.password}
-                    onChange={(e) => setLogInData({ ...logInData, password: e.target.value })}
+                    onChange={handleLogInChange}
                     disabled={isLoading}
                     className={`pl-10 pr-10 h-12 border-2 ${errors.password ? "border-red-500" : "border-gray-300"} focus:border-[#4F46E5] focus:ring-0 outline-none`}
                   />
@@ -768,12 +557,16 @@ export function AuthModals({
                 {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
               </div>
 
+              {/* General Error */}
+              {errors.general && <p className="text-red-500 text-sm mt-1">{errors.general}</p>}
+
               {/* Forgot Password */}
               <div className="text-right">
                 <button
                   type="button"
                   disabled={isLoading}
                   className="text-sm text-[#4F46E5] hover:underline disabled:opacity-50"
+                  onClick={() => setShowForgotPassword(true)}
                 >
                   Forgot Password?
                 </button>
@@ -783,7 +576,7 @@ export function AuthModals({
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6 disabled:opacity-50"
+                className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6 disabled:opacity-75"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -799,7 +592,7 @@ export function AuthModals({
             {/* Switch to Sign Up */}
             <div className="text-center mt-6">
               <p className="text-gray-600">
-                Don't have an account?{" "}
+                {"Don't have an account? "}
                 <button
                   onClick={handleSwitchToSignUp}
                   disabled={isLoading}
@@ -811,7 +604,76 @@ export function AuthModals({
             </div>
           </div>
         )}
+
+        {/* Forgot Password Modal */}
+        {isLogInOpen && showForgotPassword && (
+          <div className="p-6 sm:p-8 slide-transition">
+            <div className="relative mb-6 h-10">
+              <h2 className="absolute left-1/2 transform -translate-x-1/2 text-2xl sm:text-3xl font-bold text-[#1F2937] text-center w-full">Reset Password</h2>
+              <button
+                onClick={handleCloseLogIn}
+                disabled={isLoading}
+                className="absolute right-0 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await handleForgotPassword(forgotEmail);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label htmlFor="forgot-email" className="block text-sm font-medium text-[#1F2937] mb-2 text-left">
+                  Enter your email address
+                </label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  name="forgot-email"
+                  placeholder="Enter your email"
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  disabled={isLoading}
+                  className="h-12 border-2 border-gray-300 focus:border-[#4F46E5] focus:ring-0 outline-none text-left placeholder:text-left"
+                />
+              </div>
+              {forgotPasswordError && <p className="text-red-500 text-sm mt-1 text-center">{forgotPasswordError}</p>}
+              {forgotPasswordSuccess && <p className="text-green-600 text-sm mt-1 text-center">{forgotPasswordSuccess}</p>}
+              <div className="flex flex-col items-center">
+                <Button
+                  type="submit"
+                  disabled={isLoading || !forgotEmail || forgotResendTimer > 0}
+                  className={`w-full h-12 font-semibold text-lg mt-2 disabled:opacity-75 text-center
+                    ${isLoading ? 'bg-[#312e81] text-white' : forgotResendTimer > 0 ? 'bg-[#a5b4fc] text-white' : 'bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white'}`}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending...
+                    </div>
+                  ) : forgotResendTimer > 0 ? (
+                    `Resend Link (${forgotResendTimer}s)`
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </Button>
+              </div>
+            </form>
+            <div className="text-center mt-6">
+              <button
+                onClick={() => setShowForgotPassword(false)}
+                className="text-[#4F46E5] font-semibold hover:underline disabled:opacity-50"
+                disabled={isLoading}
+              >
+                Back to Log In
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

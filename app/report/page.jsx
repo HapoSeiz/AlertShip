@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useAuthModals } from "@/hooks/useAuthModals"
 import { MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,6 +9,7 @@ import { useEffect } from "react"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { AuthModals } from "@/components/auth-modals"
+import { useAuth } from "@/contexts/AuthContext";
 import { Nunito } from "next/font/google"
 
 const nunito = Nunito({ 
@@ -20,7 +20,14 @@ const nunito = Nunito({
 
 
 export default function ReportPage() {
-    const router = useRouter()
+    const router = useRouter();
+    const {
+      isAuthenticated,
+      user,
+      openLogIn,
+      openSignUp,
+      signOut,
+    } = useAuth();
 
     const [submitSuccess, setSubmitSuccess] = useState(false)
     const [formErrors, setFormErrors] = useState({})
@@ -28,9 +35,9 @@ export default function ReportPage() {
 
     // Modify the handleReportIssue function to check login status first
     const handleReportIssue = () => {
-        if (!isLoggedIn) {
+        if (!isAuthenticated) {
         // If not logged in, open login modal
-        setIsLogInOpen(true)
+        openLogIn()
         return
         }
         setShowReportForm(true)
@@ -142,12 +149,6 @@ export default function ReportPage() {
         }
     }
 
-    const {
-        isSignUpOpen, isLogInOpen, isLoggedIn, user,
-        openSignUp, openLogIn, closeSignUp, closeLogIn,
-        switchToLogIn, switchToSignUp, handleLogin, handleLogout
-    } = useAuthModals()
-
     const handleNavigate = (page, scrollTo) => {
         if (page === "home") router.push("/")
         else if (page === "about") router.push("/about")
@@ -161,14 +162,7 @@ export default function ReportPage() {
     return (
       <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
         {/* Header */}
-        <Header
-            currentPage="report"
-            isLoggedIn={isLoggedIn}
-            onLoginOpen={openLogIn}
-            onSignUpOpen={openSignUp}
-            onLogout={handleLogout}
-            onNavigate={handleNavigate}
-        />
+        <Header currentPage="report" />
 
         {/* Main Content */}
         <main className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12">
@@ -473,8 +467,8 @@ export default function ReportPage() {
         </main>
 
         {/* Footer */}
-        <Footer />
-
+        <Footer onNavigate={handleNavigate} />
+        <AuthModals />
       </div>
     )
   }

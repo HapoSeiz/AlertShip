@@ -11,7 +11,7 @@ import Benefits from "@/components/benefits"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
 import { useRouter } from "next/navigation"
-import { useAuthModals } from "@/hooks/useAuthModals"
+import { useAuth } from "@/contexts/AuthContext"
 import { AuthModals } from "@/components/auth-modals"
 
 const nunito = Nunito({
@@ -23,23 +23,7 @@ const nunito = Nunito({
 export default function LandingPage() {
   const router = useRouter()
   const [location, setLocation] = useState("")
-
-  const {
-    isSignUpOpen, isLogInOpen, isLoggedIn,
-    openSignUp, openLogIn, closeSignUp, closeLogIn,
-    switchToLogIn, switchToSignUp, handleLogin, handleLogout
-  } = useAuthModals()
-
-  // Navigation handler
-  const handleNavigate = (page) => {
-    if (page === "home") router.push("/")
-    else if (page === "about") router.push("/about")
-    else if (page === "contact") router.push("/contact")
-    else if (page === "faqs") router.push("/faqs")
-    else if (page === "dashboard") router.push("/dashboard")
-    else if (page === "report") router.push("/report")
-    else router.push("/")
-  }
+  const { isAuthenticated, openSignUp } = useAuth()
 
   const handleLocationSubmit = () => {
     if (!location.trim()) return
@@ -49,14 +33,7 @@ export default function LandingPage() {
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}
-      <Header
-        currentPage="home"
-        isLoggedIn={isLoggedIn}
-        onLoginOpen={openLogIn}
-        onSignUpOpen={openSignUp}
-        onLogout={handleLogout}
-        onNavigate={handleNavigate}
-      />
+      <Header currentPage="home" />
 
       {/* Hero Section */}
       <section className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12">
@@ -100,7 +77,7 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Buttons */}
-              {!isLoggedIn && (
+              {!isAuthenticated && (
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Button
                     onClick={openSignUp}
@@ -133,15 +110,7 @@ export default function LandingPage() {
       <HowItWorks />
       <Benefits />
       <Footer showQuestionsSection={true} />
-      <AuthModals
-        isSignUpOpen={isSignUpOpen}
-        isLogInOpen={isLogInOpen}
-        onCloseSignUp={closeSignUp}
-        onCloseLogIn={closeLogIn}
-        onSwitchToLogIn={switchToLogIn}
-        onSwitchToSignUp={switchToSignUp}
-        onLogin={handleLogin}
-      />
+      <AuthModals />
     </div>
   )
 }
