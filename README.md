@@ -10,10 +10,9 @@ AlertShip is a web platform that allows users to **report**, **view**, and **tra
 
 - 📍 **Interactive Map** with real-time outage reports  
 - 🛠️ **User-submitted Outages** for electricity, water, and more  
-- 🔔 **Outage Prediction**: See estimated fix times based on similar past events  
 - 📊 **Area-wise Insights**: See most affected districts and utilities  
-- 📱 **Mobile-friendly UI** with dark mode support  
-- 🔄 **Future Modules**: Pollution level tracking, road condition monitoring, notifications
+- 📱 **Mobile-friendly UI** 
+- 🔄 **Future Modules**: Outage prediction and estimated fix times
 
 ---
 
@@ -21,11 +20,11 @@ AlertShip is a web platform that allows users to **report**, **view**, and **tra
 
 | Category       | Technology |
 |----------------|------------|
-| Frontend       | HTML, CSS, JavaScript / React / Figma (UI design) |
-| Map Integration| Leaflet.js / Mapbox GL JS |
-| Backend        | Node.js / Express / Firebase (or Python Flask) |
-| Database       | Firebase / MongoDB |
-| Hosting        | Vercel / Netlify / Firebase Hosting |
+| Frontend       | HTML, CSS, JavaScript, React, Figma (UI design) |
+| Map Integration| Mapbox |
+| Backend        | Node.js, Firebase |
+| Database       | Firebase |
+| Hosting        | Vercel |
 
 ---
 
