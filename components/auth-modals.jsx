@@ -121,9 +121,7 @@ export function AuthModals() {
     await handleGoogleAuth(isSignUp)
   }
 
-  const handleResend = async () => {
-    await handleResendVerificationEmail()
-  }
+  
 
   const handleCloseSignUp = () => {
     closeSignUp()
@@ -453,7 +451,7 @@ export function AuthModals() {
             <div className="text-center mt-6">
               <p className="text-sm text-gray-600 mb-2">Didn't receive the email?</p>
               <button
-                onClick={handleResend}
+                onClick={handleResendVerificationEmail}
                 className="text-sm text-[#4F46E5] font-semibold hover:underline"
                 disabled={isLoading || resendTimer > 0}
               >
