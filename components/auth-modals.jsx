@@ -67,6 +67,8 @@ export function AuthModals() {
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [forgotEmail, setForgotEmail] = useState("")
   const [forgotResendTimer, setForgotResendTimer] = useState(0)
+  const [isResending, setIsResending] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Start resend timer after successful reset
   useEffect(() => {
@@ -118,10 +120,16 @@ export function AuthModals() {
   }
 
   const handleGoogleSignIn = async (isSignUp) => {
-    await handleGoogleAuth(isSignUp)
-  }
+    setIsGoogleLoading(true);
+    await handleGoogleAuth(isSignUp);
+    setIsGoogleLoading(false);
+  };
 
-  
+  const handleResendVerificationEmailWithState = async () => {
+    setIsResending(true);
+    await handleResendVerificationEmail();
+    setIsResending(false);
+  };
 
   const handleCloseSignUp = () => {
     closeSignUp()
@@ -220,15 +228,20 @@ export function AuthModals() {
             <Button
               type="button"
               onClick={() => handleGoogleSignIn(true)}
-              disabled={isLoading}
+              disabled={isLoading || isResending || isGoogleLoading}
               className="w-full h-12 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 font-semibold mb-6 flex items-center justify-center gap-3"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              {isGoogleLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  Signing up...
+                </>
               ) : (
-                <GoogleIcon />
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
               )}
-              {isLoading ? "Signing up..." : "Continue with Google"}
             </Button>
 
             {/* Divider */}
@@ -451,7 +464,7 @@ export function AuthModals() {
             <div className="text-center mt-6">
               <p className="text-sm text-gray-600 mb-2">Didn't receive the email?</p>
               <button
-                onClick={handleResendVerificationEmail}
+                onClick={handleResendVerificationEmailWithState}
                 className="text-sm text-[#4F46E5] font-semibold hover:underline"
                 disabled={isLoading || resendTimer > 0}
               >
@@ -482,15 +495,20 @@ export function AuthModals() {
             <Button
               type="button"
               onClick={() => handleGoogleSignIn(false)}
-              disabled={isLoading}
+              disabled={isLoading || isResending || isGoogleLoading}
               className="w-full h-12 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 hover:border-gray-400 font-semibold mb-6 flex items-center justify-center gap-3"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              {isGoogleLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  Logging in...
+                </>
               ) : (
-                <GoogleIcon />
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
               )}
-              {isLoading ? "Logging in..." : "Continue with Google"}
             </Button>
 
             {/* Divider */}
@@ -556,7 +574,23 @@ export function AuthModals() {
               </div>
 
               {/* General Error */}
-              {errors.general && <p className="text-red-500 text-sm mt-1">{errors.general}</p>}
+              {errors.general && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.general}
+                  {errors.general.includes('Please verify your email before logging in') && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleResendVerificationEmailWithState}
+                        className="text-[#4F46E5] underline ml-1 disabled:opacity-50"
+                        disabled={isLoading || isResending || resendTimer > 0}
+                      >
+                        {resendTimer > 0 ? `Resend link (${resendTimer}s)` : 'Resend link'}
+                      </button>
+                    </>
+                  )}
+                </p>
+              )}
 
               {/* Forgot Password */}
               <div className="text-right">
@@ -573,10 +607,15 @@ export function AuthModals() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isResending}
                 className="w-full h-12 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white font-semibold text-lg mt-6 disabled:opacity-75"
               >
-                {isLoading ? (
+                {(isResending) ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </div>
+                ) : isLoading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Logging in...
