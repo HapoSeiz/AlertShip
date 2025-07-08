@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 const ID_TOKEN_COOKIE_NAME = 'idToken';
 
 export async function POST() {
+  // Clear the idToken cookie
   cookies().set({
     name: ID_TOKEN_COOKIE_NAME,
     value: '',

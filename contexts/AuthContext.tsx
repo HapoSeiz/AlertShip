@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { 
   getAuth, 
   onAuthStateChanged, 
@@ -141,6 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Disposable email domains check
   const disposableEmailDomains = [
@@ -165,11 +166,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Timer for resend verification email
   const startResendTimer = () => {
+    if (resendIntervalRef.current) {
+      clearInterval(resendIntervalRef.current);
+    }
     setResendTimer(60);
-    const timer = setInterval(() => {
+    resendIntervalRef.current = setInterval(() => {
       setResendTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+          resendIntervalRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -254,6 +259,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Send verification email
       await sendEmailVerification(newUser);
+      startResendTimer(); // Start the timer after sending the initial verification email
       await auth.updateCurrentUser(newUser); // <- crucial!
       await newUser.reload();
       
@@ -399,17 +405,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setForgotPasswordError('');
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setForgotPasswordSuccess('Password reset email sent! Please check your inbox.');
-      } else {
-        setForgotPasswordError(data.error || 'Failed to send password reset email.');
-      }
+      await sendPasswordResetEmail(auth, email);
+      setForgotPasswordSuccess('Password reset email sent! Please check your inbox.');
     } catch (error: any) {
       setForgotPasswordError(error.message || 'Failed to send password reset email.');
     } finally {

@@ -13,6 +13,7 @@ import Header from "@/components/header"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { AuthModals } from "@/components/auth-modals"
+import { useToast } from "@/components/ui/use-toast";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -25,12 +26,23 @@ export default function LandingPage() {
   const searchParams = useSearchParams();
   const [location, setLocation] = useState("")
   const { isAuthenticated, openSignUp, openLogIn } = useAuth()
+  const { toast } = useToast();
 
   useEffect(() => {
     if (searchParams.get("login") === "true") {
       openLogIn();
     }
   }, [searchParams, openLogIn]);
+
+  useEffect(() => {
+    if (searchParams.get("redirected") === "1") {
+      toast({
+        title: "Login Required",
+        description: "Please log in to access that page.",
+        status: "info",
+      });
+    }
+  }, [searchParams, toast]);
 
   const handleLocationSubmit = () => {
     if (!location.trim()) return

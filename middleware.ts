@@ -13,7 +13,7 @@ export async function middleware(req: NextRequest) {
   if (!idToken) {
     const url = req.nextUrl.clone();
     url.pathname = '/';
-    
+    //url.searchParams.set('redirected', '1');
     return NextResponse.redirect(url);
   }
   // Do not verify the idToken here; just check presence
@@ -21,5 +21,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard', '/report'],
+  matcher: ['/dashboard/:path*', '/report/:path*'],
 }; 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Nunito } from "next/font/google"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
@@ -20,6 +20,8 @@ export default function DashboardPage() {
   const {
     user,
     isAuthenticated,
+    loading,
+    openLogIn,
     signOut,
   } = useAuth();
 
