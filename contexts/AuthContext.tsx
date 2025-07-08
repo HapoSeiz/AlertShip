@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { 
   getAuth, 
   onAuthStateChanged, 
@@ -141,6 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Disposable email domains check
   const disposableEmailDomains = [
@@ -165,11 +166,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Timer for resend verification email
   const startResendTimer = () => {
+    if (resendIntervalRef.current) {
+      clearInterval(resendIntervalRef.current);
+    }
     setResendTimer(60);
-    const timer = setInterval(() => {
+    resendIntervalRef.current = setInterval(() => {
       setResendTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+          resendIntervalRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -215,7 +220,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Sign up handler
+  // handleSignUp: after createUserWithEmailAndPassword, get idToken, POST to /api/auth/login, then update state
   const handleSignUp = async (data: SignUpData, setIsTransitioning: (value: boolean) => void) => {
     setErrors({});
     setIsLoading(true);
@@ -254,10 +259,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Send verification email
       await sendEmailVerification(newUser);
+      startResendTimer(); // Start the timer after sending the initial verification email
+      await auth.updateCurrentUser(newUser); // <- crucial!
+      await newUser.reload();
       
-      // Sign out the user immediately after signup since they're not verified
-      await firebaseSignOut(auth);
-      
+      // In handleSignUp, after sending verification email and showing the verify modal, do NOT call /api/auth/session or set user state. Only show the verify modal and return.
       setIsTransitioning(true);
       setShowVerifyEmail(true);
     } catch (error: any) {
@@ -268,7 +274,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Login handler
+  // handleLogIn: after signInWithEmailAndPassword, get idToken, POST to /api/auth/login, then update state
   const handleLogIn = async (data: LogInData) => {
     setErrors({});
     setIsLoading(true);
@@ -286,54 +292,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       const firebaseUser = userCredential.user;
-      
-      // Check if user is verified in Firestore
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        // User doesn't exist in Firestore, create them as verified
-        await setDoc(userRef, {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || '',
-          createdAt: new Date().toISOString(),
-          verified: true,
-          lastLoginAt: new Date().toISOString(),
-        });
-      } else {
-        const userData = userSnap.data();
-        
-        // Check if user has verified their email in Firebase
-        if (!firebaseUser.emailVerified) {
-          // User hasn't verified email in Firebase - sign them out and show verification modal
-          await firebaseSignOut(auth);
-          setShowVerifyEmail(true);
-          setErrors({ general: 'Please verify your email before logging in. Check your inbox for a verification link.' });
-          setIsLoading(false);
-          return;
-        }
-        
-        // Check if user is marked as verified in Firestore
-        if (!userData.verified) {
-          // User has verified email but not marked as verified in Firestore
-          // Update their verification status and allow login
-          await updateDoc(userRef, { 
-            verified: true,
-            lastLoginAt: new Date().toISOString(),
-          });
-        } else {
-          // User is verified, update last login
-          await updateDoc(userRef, { 
-            lastLoginAt: new Date().toISOString(),
-          });
-        }
+      await firebaseUser.reload();
+      if (!firebaseUser.emailVerified) {
+        setShowVerifyEmail(true);
+        setErrors({ general: 'Please verify your email before logging in. Check your inbox for a verification link.' });
+        setIsLoading(false);
+        return;
       }
-      // --- FIX: Close login modal and reset modal state after successful login ---
+      const idToken = await firebaseUser.getIdToken();
+      await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+        credentials: 'include',
+      });
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
+      const sessionData = await res.json();
+      setUser(sessionData.user);
+      setUserProfile(sessionData.user);
       setIsLogInOpen(false);
       setShowVerifyEmail(false);
       setErrors({});
-      // ------------------------------------------------------
       router.push('/dashboard');
     } catch (error: any) {
       setErrors({ general: handleFirebaseError(error) });
@@ -342,7 +321,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Google auth handler
+  // handleGoogleAuth: after Google sign-in, get idToken, POST to /api/auth/login, then update state
   const handleGoogleAuth = async (isSignUp: boolean) => {
     setErrors({});
     setIsLoading(true);
@@ -350,20 +329,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-      
-      const res = await fetch('/api/auth-google', {
+      const googleUser = result.user;
+      await googleUser.reload();
+      if (!googleUser.emailVerified) {
+        setShowVerifyEmail(true);
+        setErrors({ general: 'Please verify your email with Google before logging in.' });
+        setIsLoading(false);
+        return;
+      }
+      const idToken = await googleUser.getIdToken();
+      await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
+        credentials: 'include',
       });
-      
-      const data = await res.json();
-      if (data.success) {
-        router.push('/dashboard');
-      } else {
-        setErrors({ general: data.error || 'Google authentication failed' });
-      }
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
+      const sessionData = await res.json();
+      setUser(sessionData.user);
+      setUserProfile(sessionData.user);
+      router.push('/dashboard');
     } catch (error: any) {
       setErrors({ general: handleFirebaseError(error) });
     } finally {
@@ -379,18 +364,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     try {
       const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error('No user to resend verification for.');
+      console.log("currentUser:", currentUser);
+      if (!currentUser) {
+        setResentError('No user is signed in.');
+        setIsLoading(false);
+        return;
+      }
+      await currentUser.reload();
+      console.log("currentUser after reload:", currentUser);
+      if (!currentUser.email) {
+        setResentError('No email found for this user.');
+        setIsLoading(false);
+        return;
+      }
+      if (currentUser.emailVerified) {
+        setResentError('Email is already verified.');
+        setIsLoading(false);
+        return;
+      }
+      console.log("About to call sendEmailVerification");
       await sendEmailVerification(currentUser);
       setResentSuccess(true);
       startResendTimer();
     } catch (error: any) {
-      setResentError('Failed to resend verification email.');
+      console.error("sendEmailVerification error:", error);
+      if (error.code === 'auth/too-many-requests') {
+        setResentError('Too many requests. Please wait a few minutes before trying again.');
+      } else {
+        setResentError('Failed to resend verification email.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
+  
 
-  // Forgot password handler
+  // handleForgotPassword: POST to /api/auth/password-reset
   const handleForgotPassword = async (email: string) => {
     setForgotPasswordSuccess('');
     setForgotPasswordError('');
@@ -399,16 +408,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await sendPasswordResetEmail(auth, email);
       setForgotPasswordSuccess('Password reset email sent! Please check your inbox.');
     } catch (error: any) {
-      setForgotPasswordError(handleFirebaseError(error));
+      setForgotPasswordError(error.message || 'Failed to send password reset email.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Sign out
+  // signOut: POST to /api/auth/logout
   const signOut = async () => {
     try {
-      await firebaseSignOut(auth);
+      await firebaseSignOut(auth); // <-- ensure client-side sign out
+      await fetch('/api/auth/logout', { method: 'POST' }); // <-- clear session cookie
+      setUser(null);
+      setUserProfile(null);
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -492,74 +504,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Listen to auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in
-        const userWithProfile = firebaseUser as User;
-        
-        // Get user profile from Firestore
-        try {
-          const userRef = doc(db, 'users', firebaseUser.uid);
-          const userSnap = await getDoc(userRef);
-          
-          if (userSnap.exists()) {
-            const profileData = userSnap.data() as UserProfile;
-            
-            // Check if user has verified their email in Firebase
-            if (!firebaseUser.emailVerified) {
-              // User hasn't verified email - sign them out
-              console.log('Unverified user detected, signing out');
-              await firebaseSignOut(auth);
-              setUser(null);
-              setUserProfile(null);
-              setLoading(false);
-              return;
-            }
-            
-            // If user has verified email but not marked as verified in Firestore,
-            // update their verification status
-            if (!profileData.verified && firebaseUser.emailVerified) {
-              await updateDoc(userRef, { verified: true });
-              profileData.verified = true;
-            }
-            
-            userWithProfile.name = profileData.name;
-            userWithProfile.verified = profileData.verified;
-            userWithProfile.createdAt = profileData.createdAt;
-            userWithProfile.lastLoginAt = profileData.lastLoginAt;
-            
-            setUserProfile(profileData);
-          } else {
-            // User exists in Firebase Auth but not in Firestore
-            // This shouldn't happen with our current flow, but handle it gracefully
-            console.log('User not found in Firestore, signing out');
-            await firebaseSignOut(auth);
-            setUser(null);
-            setUserProfile(null);
-            setLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          // On error, sign out the user to be safe
-          await firebaseSignOut(auth);
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
+      await firebaseUser.reload();
+      if (!firebaseUser.emailVerified) {
+        // Not verified, do not fetch session, treat as logged out
+        setUser(null);
+        setUserProfile(null);
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'include' });
+        if (res.status === 401) {
           setUser(null);
           setUserProfile(null);
           setLoading(false);
           return;
         }
-        
-        setUser(userWithProfile);
-      } else {
-        // User is signed out
+        if (!res.ok) {
+          console.error("Session fetch failed");
+          setUser(null);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+        const sessionData = await res.json();
+        setUser(firebaseUser);
+        setUserProfile(sessionData.user);
+      } catch (error) {
+        console.error("Session fetch failed", error);
         setUser(null);
         setUserProfile(null);
       }
-      setLoading(false);
-    });
+    } else {
+      setUser(null);
+      setUserProfile(null);
+    }
+    setLoading(false);
+  });
 
-    return () => unsubscribe();
-  }, [auth, db]);
+  // 🧹 Clean up on unmount
+  return () => unsubscribe();
+}, []);
+
 
   // Real-time user profile updates
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,9 +10,10 @@ import HowItWorks from "@/components/how-it-works"
 import Benefits from "@/components/benefits"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { AuthModals } from "@/components/auth-modals"
+import { useToast } from "@/components/ui/use-toast";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -22,8 +23,26 @@ const nunito = Nunito({
 
 export default function LandingPage() {
   const router = useRouter()
+  const searchParams = useSearchParams();
   const [location, setLocation] = useState("")
-  const { isAuthenticated, openSignUp } = useAuth()
+  const { isAuthenticated, openSignUp, openLogIn } = useAuth()
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (searchParams.get("login") === "true") {
+      openLogIn();
+    }
+  }, [searchParams, openLogIn]);
+
+  useEffect(() => {
+    if (searchParams.get("redirected") === "1") {
+      toast({
+        title: "Login Required",
+        description: "Please log in to access that page.",
+        status: "info",
+      });
+    }
+  }, [searchParams, toast]);
 
   const handleLocationSubmit = () => {
     if (!location.trim()) return
