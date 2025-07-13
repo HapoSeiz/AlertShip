@@ -1,3 +1,4 @@
+@import 'nprogress/nprogress.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -56,4 +57,16 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom NProgress bar to match scroll bar */
+#nprogress .bar {
+  background: #4F46E5 !important;
+  height: 4px !important;
+}
+#nprogress .peg {
+  box-shadow: 0 0 10px #4F46E5, 0 0 5px #4F46E5 !important;
+}
+#nprogress .spinner {
+  display: none !important;
 }

@@ -27,16 +27,7 @@ export default function AboutPage() {
     signOut,
   } = useAuth();
 
-  // Navigation handler for hyperlinks
-  const handleNavigate = (page) => {
-    if (page === "home") router.push("/")
-    else if (page === "about") router.push("/about")
-    else if (page === "contact") router.push("/contact")
-    else if (page === "faqs") router.push("/faqs")
-    else if (page === "dashboard") router.push("/dashboard")
-    else if (page === "report") router.push("/report")
-    else router.push("/")
-  }
+  
 
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
@@ -299,7 +290,7 @@ export default function AboutPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => {
-                  handleNavigate("report")
+                  router.push("/report")
                 }}
                 className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-8 py-3 text-lg"
               >
@@ -307,7 +298,7 @@ export default function AboutPage() {
               </Button>
               <Button
                 onClick={() => {
-                  handleNavigate("report")
+                  router.push("/report")
                 }}
                 variant="outline"
                 className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white px-8 py-3 text-lg"

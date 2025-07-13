@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import NProgressProvider from "@/components/nprogress-provider";
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -27,6 +28,7 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
+          <NProgressProvider />
           {children}
         </AuthProvider>
       </body>
