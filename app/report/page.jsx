@@ -30,7 +30,15 @@ export default function ReportPage() {
       signOut,
     } = useAuth();
 
-    // Remove the useEffect that checks isAuthenticated and loading and redirects/opens login modal.
+    useEffect(() => {
+      if (!loading && !isAuthenticated) {
+        router.push("/");
+      }
+    }, [loading, isAuthenticated, router]);
+
+    if (loading || !isAuthenticated) {
+      return null;
+    }
 
     const [submitSuccess, setSubmitSuccess] = useState(false)
     const [formErrors, setFormErrors] = useState({})

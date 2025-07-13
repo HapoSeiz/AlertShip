@@ -25,6 +25,16 @@ export default function DashboardPage() {
     signOut,
   } = useAuth();
 
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/");
+    }
+  }, [loading, isAuthenticated, router]);
+
+  if (loading || !isAuthenticated) {
+    return null;
+  }
+
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}
