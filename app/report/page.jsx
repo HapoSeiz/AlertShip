@@ -30,11 +30,44 @@ export default function ReportPage() {
       signOut,
     } = useAuth();
 
-    // Remove the useEffect that checks isAuthenticated and loading and redirects/opens login modal.
+    // All state hooks at the top
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [formErrors, setFormErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [reportForm, setReportForm] = useState({
+        type: "electricity",
+        description: "",
+        locality: "",
+        city: "",
+        state: "",
+        pinCode: "",
+        photo: null,
+    });
 
-    const [submitSuccess, setSubmitSuccess] = useState(false)
-    const [formErrors, setFormErrors] = useState({})
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    // --- Post-login redirect logic ---
+    useEffect(() => {
+      if (typeof window !== "undefined" && isAuthenticated) {
+        const postLoginAction = sessionStorage.getItem("postLoginAction");
+        if (postLoginAction === "report") {
+          sessionStorage.removeItem("postLoginAction");
+          router.replace("/report");
+        }
+      }
+    }, [isAuthenticated, router]);
+
+    // Route protection
+    useEffect(() => {
+      if (!loading && !isAuthenticated) {
+        router.push("/");
+      }
+    }, [loading, isAuthenticated, router]);
+
+    if (loading) {
+      return null; // or <LoadingSpinner />
+    }
+    if (!isAuthenticated) {
+      return null;
+    }
 
     // Modify the handleReportIssue function to check login status first
     const handleReportIssue = () => {
@@ -43,13 +76,11 @@ export default function ReportPage() {
         openLogIn()
         return
         }
-        setShowReportForm(true)
-        setShowUpcomingOutages(false)
+        // No-op or add your own logic here
     }
 
     const handleViewUpcomingOutages = () => {
-        setShowUpcomingOutages(true)
-        setShowReportForm(false)
+        // No-op or add your own logic here
     }
 
     const handleFormChange = (e) => {
@@ -100,17 +131,6 @@ export default function ReportPage() {
         return Object.keys(errors).length === 0
     }
 
-    // Form state
-    const [reportForm, setReportForm] = useState({
-        type: "electricity",
-        description: "",
-        locality: "",
-        city: "",
-        state: "",
-        pinCode: "",
-        photo: null,
-    })
-
     const handleSubmitReport = async (e) => {
         e.preventDefault()
         
@@ -152,16 +172,6 @@ export default function ReportPage() {
         }
     }
 
-    const handleNavigate = (page, scrollTo) => {
-        if (page === "home") router.push("/")
-        else if (page === "about") router.push("/about")
-        else if (page === "contact") router.push("/contact")
-        else if (page === "faqs") router.push("/faqs")
-        else if (page === "dashboard") router.push("/dashboard")
-        else if (page === "report") router.push("/report")
-        else router.push("/")
-    }
-
     return (
       <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
         {/* Header */}
@@ -184,15 +194,8 @@ export default function ReportPage() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button
                     onClick={() => {
-                      setShowReportForm(false)
-                      setShowOutagePage(false)
-                      setShowAboutPage(false)
-                      setShowContactPage(false)
-                      setShowFaqPage(false)
-                      setShowDashboard(false)
-                      setShowUpcomingOutages(false)
-                      setCurrentPage("home")
-                      window.scrollTo({ top: 0, behavior: "smooth" })
+                      router.push('/')
+                      setSubmitSuccess(false)
                     }}
                     className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
                   >
@@ -470,7 +473,7 @@ export default function ReportPage() {
         </main>
 
         {/* Footer */}
-        <Footer onNavigate={handleNavigate} />
+        <Footer />
         <AuthModals />
       </div>
     )

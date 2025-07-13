@@ -27,16 +27,6 @@ export default function ContactPage() {
     signOut,
   } = useAuth();
 
-  const handleNavigate = (page) => {
-    if (page === "home") router.push("/")
-    else if (page === "about") router.push("/about")
-    else if (page === "contact") router.push("/contact")
-    else if (page === "faqs") router.push("/faqs")
-    else if (page === "dashboard") router.push("/dashboard")
-    else if (page === "report") router.push("/report")
-    else router.push("/")
-  }
-
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
       {/* Header */}

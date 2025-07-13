@@ -47,7 +47,7 @@ export default function Header({ currentPage = "home" }) {
     } else if (page === "dashboard") {
       router.push("/dashboard");
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    
   };
 
   return (

@@ -313,7 +313,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLogInOpen(false);
       setShowVerifyEmail(false);
       setErrors({});
-      router.push('/dashboard');
+      // --- Post-login redirect logic ---
+      if (typeof window !== 'undefined') {
+        const postLoginAction = sessionStorage.getItem('postLoginAction');
+        if (postLoginAction === 'report') {
+          sessionStorage.removeItem('postLoginAction');
+          router.push('/report');
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       setErrors({ general: handleFirebaseError(error) });
     } finally {
@@ -348,7 +359,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const sessionData = await res.json();
       setUser(sessionData.user);
       setUserProfile(sessionData.user);
-      router.push('/dashboard');
+      // --- Post-login redirect logic ---
+      if (typeof window !== 'undefined') {
+        const postLoginAction = sessionStorage.getItem('postLoginAction');
+        if (postLoginAction === 'report') {
+          sessionStorage.removeItem('postLoginAction');
+          router.push('/report');
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       setErrors({ general: handleFirebaseError(error) });
     } finally {

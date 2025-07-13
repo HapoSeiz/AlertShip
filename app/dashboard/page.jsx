@@ -25,15 +25,17 @@ export default function DashboardPage() {
     signOut,
   } = useAuth();
 
-  // Navigation handler for hyperlinks
-  const handleNavigate = (page) => {
-    if (page === "home") router.push("/")
-    else if (page === "about") router.push("/about")
-    else if (page === "contact") router.push("/contact")
-    else if (page === "faqs") router.push("/faqs")
-    else if (page === "dashboard") router.push("/dashboard")
-    else if (page === "report") router.push("/report")
-    else router.push("/")
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/");
+    }
+  }, [loading, isAuthenticated, router]);
+
+  if (loading) {
+    return null; // or <LoadingSpinner />
+  }
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
