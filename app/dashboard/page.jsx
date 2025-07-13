@@ -31,7 +31,10 @@ export default function DashboardPage() {
     }
   }, [loading, isAuthenticated, router]);
 
-  if (loading || !isAuthenticated) {
+  if (loading) {
+    return null; // or <LoadingSpinner />
+  }
+  if (!isAuthenticated) {
     return null;
   }
 

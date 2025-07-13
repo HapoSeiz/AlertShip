@@ -30,19 +30,44 @@ export default function ReportPage() {
       signOut,
     } = useAuth();
 
+    // All state hooks at the top
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [formErrors, setFormErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [reportForm, setReportForm] = useState({
+        type: "electricity",
+        description: "",
+        locality: "",
+        city: "",
+        state: "",
+        pinCode: "",
+        photo: null,
+    });
+
+    // --- Post-login redirect logic ---
+    useEffect(() => {
+      if (typeof window !== "undefined" && isAuthenticated) {
+        const postLoginAction = sessionStorage.getItem("postLoginAction");
+        if (postLoginAction === "report") {
+          sessionStorage.removeItem("postLoginAction");
+          router.replace("/report");
+        }
+      }
+    }, [isAuthenticated, router]);
+
+    // Route protection
     useEffect(() => {
       if (!loading && !isAuthenticated) {
         router.push("/");
       }
     }, [loading, isAuthenticated, router]);
 
-    if (loading || !isAuthenticated) {
+    if (loading) {
+      return null; // or <LoadingSpinner />
+    }
+    if (!isAuthenticated) {
       return null;
     }
-
-    const [submitSuccess, setSubmitSuccess] = useState(false)
-    const [formErrors, setFormErrors] = useState({})
-    const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Modify the handleReportIssue function to check login status first
     const handleReportIssue = () => {
@@ -51,13 +76,11 @@ export default function ReportPage() {
         openLogIn()
         return
         }
-        setShowReportForm(true)
-        setShowUpcomingOutages(false)
+        // No-op or add your own logic here
     }
 
     const handleViewUpcomingOutages = () => {
-        setShowUpcomingOutages(true)
-        setShowReportForm(false)
+        // No-op or add your own logic here
     }
 
     const handleFormChange = (e) => {
@@ -107,17 +130,6 @@ export default function ReportPage() {
         setFormErrors(errors)
         return Object.keys(errors).length === 0
     }
-
-    // Form state
-    const [reportForm, setReportForm] = useState({
-        type: "electricity",
-        description: "",
-        locality: "",
-        city: "",
-        state: "",
-        pinCode: "",
-        photo: null,
-    })
 
     const handleSubmitReport = async (e) => {
         e.preventDefault()
@@ -182,15 +194,8 @@ export default function ReportPage() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button
                     onClick={() => {
-                      setShowReportForm(false)
-                      setShowOutagePage(false)
-                      setShowAboutPage(false)
-                      setShowContactPage(false)
-                      setShowFaqPage(false)
-                      setShowDashboard(false)
-                      setShowUpcomingOutages(false)
-                      setCurrentPage("home")
-                      window.scrollTo({ top: 0, behavior: "smooth" })
+                      router.push('/')
+                      setSubmitSuccess(false)
                     }}
                     className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
                   >
