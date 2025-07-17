@@ -54,7 +54,7 @@ export default function LandingPage() {
                 Local Outages
               </h1>
               <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Check and report electricity and water disruptions in your area.
+                Check and report electricity and water disruptions<br />in your area.
               </p>
 
               {/* Location Input */}

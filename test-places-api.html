@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Places API</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=initMap" async defer></script>
+</head>
+<body>
+    <h1>Test Places API</h1>
+    <input type="text" id="searchInput" placeholder="Type a location..." />
+    <button onclick="testSearch()">Search</button>
+    <div id="results"></div>
+
+    <script>
+        let autocompleteService;
+        let placesService;
+        let sessionToken;
+
+        function initMap() {
+            // Initialize the Places API services
+            autocompleteService = new google.maps.places.AutocompleteService();
+            placesService = new google.maps.places.PlacesService(document.createElement('div'));
+            sessionToken = new google.maps.places.AutocompleteSessionToken();
+            
+            console.log("Places API initialized");
+        }
+
+        function testSearch() {
+            const query = document.getElementById('searchInput').value;
+            
+            if (!query || query.length < 3) {
+                console.log("Query too short");
+                return;
+            }
+
+            const request = {
+                input: query,
+                types: ["locality", "sublocality", "administrative_area_level_1", "administrative_area_level_2"],
+                componentRestrictions: { country: "IN" },
+                sessionToken: sessionToken
+            };
+
+            console.log("Searching for:", query);
+            
+            autocompleteService.getPlacePredictions(request, (predictions, status) => {
+                console.log("Status:", status);
+                console.log("Predictions:", predictions);
+                
+                const resultsDiv = document.getElementById('results');
+                
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    resultsDiv.innerHTML = '<h3>Results:</h3>';
+                    predictions.forEach(prediction => {
+                        resultsDiv.innerHTML += `
+                            <p><strong>${prediction.description}</strong> (${prediction.place_id})</p>
+                        `;
+                    });
+                } else {
+                    resultsDiv.innerHTML = '<p>No results found or error occurred</p>';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
