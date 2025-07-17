@@ -1,11 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bell, Settings, MapPin, Calendar, AlertTriangle, MessageSquare, X } from "lucide-react"
 import dynamic from "next/dynamic";
 import { Textarea } from "@/components/ui/textarea"
+import { fetchOutageReportsByUid } from "@/firebase/firestoreHelpers";
+import { useRouter } from "next/navigation"
+import {
+  fetchUserProfile,
+  addSavedLocation,
+  updateSavedLocations,
+  removeSavedLocation,
+  SavedLocation,
+  fetchNotificationSettings,
+  updateNotificationSettings,
+  saveUserProfile,
+  isEmailInUse,
+} from "@/firebase/firestoreHelpers";
+import EmailVerification from "./email-verification";
+import OtpModal from "./otp-modal";
 
 
 const SearchBox = dynamic(() => import("@mapbox/search-js-react").then(mod => mod.SearchBox), {
@@ -17,8 +32,8 @@ export default function UserDashboard({ user, onLogout }) {
   const [showAddLocationModal, setShowAddLocationModal] = useState(false)
   const [newLocation, setNewLocation] = useState({ name: "", address: "" })
   const [notificationSettings, setNotificationSettings] = useState({
-    browser: true,
-    whatsapp: true,
+    browser: false,
+    whatsapp: false,
     email: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -51,26 +66,16 @@ export default function UserDashboard({ user, onLogout }) {
   const [currentDate, setCurrentDate] = useState(new Date(2023, 5, 1)) // June 2023
 
   // Mock data for the dashboard
-  const recentReports = [
-    {
-      id: 1,
-      type: "electricity",
-      location: "Sector 15, Block A",
-      date: "2023-06-01",
-      status: "resolved",
-      description: "Power outage due to transformer failure",
-      source: "official",
-    },
-    {
-      id: 2,
-      type: "water",
-      location: "Phase 2, Main Road",
-      date: "2023-05-28",
-      status: "pending",
-      description: "Low water pressure in the morning",
-      source: "crowdsourced",
-    },
-  ]
+  const [recentReports, setRecentReports] = useState([]);
+  useEffect(() => {
+    if (user?.uid) {
+      fetchOutageReportsByUid(user.uid).then((reports) => {
+        // Sort by timestamp descending
+        const sorted = [...reports].sort((a, b) => new Date(b.timestamp || b.reportedAt) - new Date(a.timestamp || a.reportedAt));
+        setRecentReports(sorted);
+      });
+    }
+  }, [user?.uid]);
 
   const upcomingOutages = [
     {
@@ -91,18 +96,7 @@ export default function UserDashboard({ user, onLogout }) {
     },
   ]
 
-  const [savedLocations, setSavedLocations] = useState([
-    {
-      id: 1,
-      name: "Home",
-      address: "123 Main Street, Sector 15",
-    },
-    {
-      id: 2,
-      name: "Office",
-      address: "456 Business Park, Phase 2",
-    },
-  ])
+  const [savedLocations, setSavedLocations] = useState([])
 
   // Add a new state variable for showing the report page:
   const [showReportPage, setShowReportPage] = useState(false)
@@ -697,71 +691,117 @@ export default function UserDashboard({ user, onLogout }) {
     )
   }
 
-  const handleAddLocation = (e) => {
+  // Fetch saved locations from Firestore on load
+  useEffect(() => {
+    if (user?.uid) {
+      fetchUserProfile(user.uid).then((profile) => {
+        if (profile && profile.savedLocations) {
+          setSavedLocations(profile.savedLocations)
+        } else {
+          setSavedLocations([])
+        }
+      })
+    }
+  }, [user?.uid])
+
+  // Add or edit location
+  const handleAddLocation = async (e) => {
     e.preventDefault()
+    if (!user?.uid) return
+
+    // Extract geotags and address components from newLocation.address (if available)
+    // For now, assume newLocation has: name, address, latitude, longitude, locality, city, state
+    // (You may need to update the address autocomplete to provide these fields)
 
     if (editingLocationId) {
       // Edit existing location
-      const locationIndex = savedLocations.findIndex((loc) => loc.id === editingLocationId)
-      if (locationIndex !== -1) {
-        const updatedLocations = [...savedLocations]
-        updatedLocations[locationIndex] = {
-          ...updatedLocations[locationIndex],
-          name: newLocation.name,
-          address: newLocation.address,
-        }
-        setSavedLocations(updatedLocations)
-        console.log("Location updated:", updatedLocations[locationIndex])
-        setLocationSuccessMessage(`Location "${newLocation.name}" updated successfully!`)
-      }
+      const updatedLocations = savedLocations.map((loc) =>
+        loc.id === editingLocationId
+          ? { ...loc, ...newLocation }
+          : loc
+      )
+      setSavedLocations(updatedLocations)
+      await updateSavedLocations(user.uid, updatedLocations)
+      setLocationSuccessMessage(`Location "${newLocation.name}" updated successfully!`)
       setEditingLocationId(null)
     } else {
       // Add new location
       const newLocationItem = {
-        id: savedLocations.length > 0 ? Math.max(...savedLocations.map((loc) => loc.id)) + 1 : 1,
-        name: newLocation.name,
-        address: newLocation.address,
+        id: Date.now().toString(),
+        ...newLocation,
       }
       setSavedLocations([...savedLocations, newLocationItem])
-      console.log("Location added:", newLocationItem)
+      await addSavedLocation(user.uid, newLocationItem)
       setLocationSuccessMessage(`Location "${newLocation.name}" added successfully!`)
     }
-
-    // Reset form and close modal
     setNewLocation({ name: "", address: "" })
     setShowAddLocationModal(false)
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setLocationSuccessMessage("")
-    }, 3000)
+    setTimeout(() => setLocationSuccessMessage(""), 3000)
   }
+
+  // Edit location (open modal)
+  const handleEditLocation = (locationId) => {
+    const locationToEdit = savedLocations.find((loc) => loc.id === locationId)
+    if (locationToEdit) {
+      setNewLocation(locationToEdit)
+      setEditingLocationId(locationId)
+      setShowAddLocationModal(true)
+    }
+  }
+
+  // Delete location
+  const confirmDeleteLocation = async () => {
+    if (!user?.uid || !locationToDelete) return
+    const updatedLocations = savedLocations.filter((loc) => loc.id !== locationToDelete.id)
+    setSavedLocations(updatedLocations)
+    await updateSavedLocations(user.uid, updatedLocations)
+    setLocationSuccessMessage(`Location "${locationToDelete.name}" deleted successfully!`)
+    setShowDeleteModal(false)
+    setLocationToDelete(null)
+    setTimeout(() => setLocationSuccessMessage(""), 3000)
+  }
+
+  const [notificationSaved, setNotificationSaved] = useState(false)
+  const notificationSettingsRef = useRef(notificationSettings)
+  useEffect(() => { notificationSettingsRef.current = notificationSettings }, [notificationSettings])
 
   const handleToggleNotification = (type) => {
-    setNotificationSettings((prev) => ({
-      ...prev,
-      [type]: !prev[type],
-    }))
+    setNotificationSettings((prev) => {
+      const updated = { ...prev, [type]: !prev[type] }
+      setNotificationSaved(false)
+      return updated
+    })
   }
 
+  // Fetch notification settings from Firestore on load
+  useEffect(() => {
+    if (user?.uid) {
+      fetchNotificationSettings(user.uid).then((settings) => {
+        if (settings) setNotificationSettings(settings)
+      })
+    }
+  }, [user?.uid])
+
+  // Save notification settings to Firestore
   const handleSaveNotificationSettings = async () => {
     setIsSubmitting(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log("Notification settings saved:", notificationSettings)
-      alert("Notification settings saved successfully!")
+      if (user?.uid) {
+        await updateNotificationSettings(user.uid, notificationSettings)
+      }
+      setNotificationSaved(true)
+      setTimeout(() => {
+        // Only reset if settings haven't changed since save
+        if (notificationSettingsRef.current === notificationSettings) {
+          setNotificationSaved(false)
+        }
+      }, 5000)
     } catch (error) {
       console.error("Error saving settings:", error)
       alert("Failed to save settings. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const handleReportNewOutage = () => {
-    // Show the report page
-    setShowReportPage(true)
   }
 
   const handleViewDetails = (reportId) => {
@@ -778,54 +818,6 @@ export default function UserDashboard({ user, onLogout }) {
     alert(`Location ${locationId} set as default`)
   }
 
-  const handleEditLocation = (locationId) => {
-    const locationToEdit = savedLocations.find((loc) => loc.id === locationId)
-    if (locationToEdit) {
-      setNewLocation({ name: locationToEdit.name, address: locationToEdit.address })
-      setEditingLocationId(locationId)
-      setShowAddLocationModal(true)
-    }
-  }
-
-  const handleDeleteLocation = (locationId) => {
-    const locationToDelete = savedLocations.find((loc) => loc.id === locationId)
-    setLocationToDelete(locationToDelete)
-    setShowDeleteModal(true)
-  }
-
-  const confirmDeleteLocation = () => {
-    if (locationToDelete) {
-      const updatedLocations = savedLocations.filter((loc) => loc.id !== locationToDelete.id)
-      setSavedLocations(updatedLocations)
-      console.log("Deleting location:", locationToDelete.id)
-      setLocationSuccessMessage(`Location "${locationToDelete.name}" deleted successfully!`)
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setLocationSuccessMessage("")
-      }, 3000)
-    }
-    setShowDeleteModal(false)
-    setLocationToDelete(null)
-  }
-
-  // Modify the handleUpdateProfile function to set the success message instead of showing an alert
-  const handleUpdateProfile = async () => {
-    setIsSubmitting(true)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setProfileSuccessMessage("Profile updated successfully!")
-
-      // Clear success message after 5 seconds
-      setTimeout(() => {
-        setProfileSuccessMessage("")
-      }, 5000)
-    } catch (error) {
-      alert("Failed to update profile. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   const handleChangePassword = async () => {
     setIsSubmitting(true)
@@ -1332,6 +1324,145 @@ export default function UserDashboard({ user, onLogout }) {
     )
   }
 
+  const router = useRouter();
+
+  // Add state for profile fields
+  const [profile, setProfile] = useState({ name: "", email: "", phone: "" });
+  const [originalProfile, setOriginalProfile] = useState({ name: "", email: "", phone: "" });
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpResendTimer, setOtpResendTimer] = useState(0);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [emailResendTimer, setEmailResendTimer] = useState(0);
+  const [resentSuccess, setResentSuccess] = useState(false);
+  const [resentError, setResentError] = useState("");
+  const [profileError, setProfileError] = useState("");
+
+  // Fetch profile from Firestore on load
+  useEffect(() => {
+    if (user?.uid) {
+      fetchUserProfile(user.uid).then((data) => {
+        if (data) {
+          setProfile({ name: data.name || "", email: data.email || "", phone: data.phone || "" });
+          setOriginalProfile({ name: data.name || "", email: data.email || "", phone: data.phone || "" });
+        }
+      });
+    }
+  }, [user?.uid]);
+
+  const handleProfileChange = (e) => {
+    setProfile({ ...profile, [e.target.name]: e.target.value });
+    setProfileError("");
+  };
+
+  const handleUpdateProfile = async () => {
+    setIsSubmitting(true);
+    setProfileError("");
+    // Check what changed
+    const emailChanged = profile.email !== originalProfile.email;
+    const phoneChanged = profile.phone !== originalProfile.phone;
+    const nameChanged = profile.name !== originalProfile.name;
+    if (emailChanged && phoneChanged) {
+      setProfileError("Please change either email or phone number, not both at once.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (emailChanged) {
+      // Check if email is already in use
+      const inUse = await isEmailInUse(profile.email, user.uid);
+      if (inUse) {
+        setProfileError("This email is already in use by another account.");
+        setIsSubmitting(false);
+        return;
+      }
+      setShowEmailVerification(true);
+      setIsSubmitting(false);
+      return;
+    }
+    if (phoneChanged) {
+      setShowOtpModal(true);
+      setIsSubmitting(false);
+      return;
+    }
+    // Only name changed
+    try {
+      await saveUserProfile(user.uid, { name: profile.name });
+      setOriginalProfile({ ...originalProfile, name: profile.name });
+      setProfileSuccessMessage("Profile updated successfully!");
+      setTimeout(() => setProfileSuccessMessage(""), 3000);
+    } catch (error) {
+      setProfileError("Failed to update profile. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Email verification modal handlers
+  const handleResendEmail = async () => {
+    setEmailResendTimer(60);
+    setResentSuccess(false);
+    setResentError("");
+    // Simulate resend
+    setTimeout(() => setResentSuccess(true), 1000);
+    // Start timer
+    const timer = setInterval(() => {
+      setEmailResendTimer((prev) => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  const handleEmailVerificationClose = () => {
+    setShowEmailVerification(false);
+    setProfile({ ...profile, email: originalProfile.email });
+  };
+  const handleEmailVerificationGoToLogin = () => {
+    setShowEmailVerification(false);
+    setOriginalProfile({ ...originalProfile, email: profile.email });
+    setProfileSuccessMessage("Email updated after verification!");
+    setTimeout(() => setProfileSuccessMessage(""), 3000);
+  };
+
+  // OTP modal handlers
+  const handleOtpChange = (e) => {
+    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
+    setOtpError("");
+  };
+  const handleOtpResend = () => {
+    setOtpResendTimer(60);
+    setOtpError("");
+    // Simulate resend
+    setTimeout(() => {}, 1000);
+    const timer = setInterval(() => {
+      setOtpResendTimer((prev) => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  const handleOtpVerify = async () => {
+    if (otp.length !== 6) {
+      setOtpError("OTP must be 6 digits");
+      return;
+    }
+    setOtpLoading(true);
+    // Simulate verification
+    setTimeout(async () => {
+      setOtpLoading(false);
+      setShowOtpModal(false);
+      await saveUserProfile(user.uid, { phone: profile.phone });
+      setOriginalProfile({ ...originalProfile, phone: profile.phone });
+      setProfileSuccessMessage("Phone number updated after verification!");
+      setTimeout(() => setProfileSuccessMessage(""), 3000);
+    }, 1000);
+  };
+  const handleOtpClose = () => {
+    setShowOtpModal(false);
+    setProfile({ ...profile, phone: originalProfile.phone });
+  };
+
   return (
     <div className="bg-[#F9FAFB] min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1432,20 +1563,25 @@ export default function UserDashboard({ user, onLogout }) {
                               }`}
                             >
                               {report.type === "electricity" ? (
-                                <Bell className={`w-4 h-4 text-[#F59E0B]`} />
+                                // Bolt icon (yellow)
+                                <svg className="w-4 h-4 text-[#F59E0B]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
                               ) : (
-                                <Bell className={`w-4 h-4 text-[#4F46E5]`} />
+                                // Water drop icon (blue)
+                                <svg className="w-4 h-4 text-[#4F46E5]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 2C10 2 4 9.5 4 13a6 6 0 0012 0c0-3.5-6-11-6-11zm0 16a4 4 0 01-4-4c0-2.22 2.67-6.22 4-8.09C11.33 7.78 14 11.78 14 14a4 4 0 01-4 4z" />
+                                </svg>
                               )}
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <p className="font-medium text-sm">{report.location}</p>
-                                  <span
-                                    className={`text-xs px-1.5 py-0.5 rounded font-medium bg-blue-100 text-blue-700`}
-                                  >
-                                    User Report
-                                  </span>
+                                  <p className="font-medium text-sm">{report.locality}</p>
                                 </div>
                                 <span
                                   className={`text-xs px-2 py-1 rounded-full ${
@@ -1536,7 +1672,7 @@ export default function UserDashboard({ user, onLogout }) {
                     <Button
                       variant="outline"
                       className="h-auto py-4 flex flex-col items-center justify-center border-gray-300 hover:border-[#4F46E5] hover:text-[#4F46E5]"
-                      onClick={handleReportNewOutage}
+                      onClick={() => router.push("/report")}
                     >
                       <AlertTriangle className="w-5 h-5 mb-2" />
                       <span className="text-xs">Report Outage</span>
@@ -1575,15 +1711,13 @@ export default function UserDashboard({ user, onLogout }) {
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold text-[#1F2937]">My Reported Outages</h2>
-                  <Button onClick={handleReportNewOutage} className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white">
+                  <Button onClick={() => router.push("/report")} className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white">
                     Report New Outage
                   </Button>
                 </div>
-
-                {/* Filter Controls */}
+                {/* Filter Controls: Only Type Filter */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    {/* Type Filter */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Type</label>
                       <div className="flex gap-2">
@@ -1619,98 +1753,16 @@ export default function UserDashboard({ user, onLogout }) {
                         </button>
                       </div>
                     </div>
-
-                    {/* Severity Filter */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Severity</label>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setReportFilters((prev) => ({ ...prev, severity: "all" }))}
-                          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                            reportFilters.severity === "all"
-                              ? "bg-[#4F46E5] text-white"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          All
-                        </button>
-                        <button
-                          onClick={() => setReportFilters((prev) => ({ ...prev, severity: "low" }))}
-                          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                            reportFilters.severity === "low"
-                              ? "bg-green-600 text-white"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          Low
-                        </button>
-                        <button
-                          onClick={() => setReportFilters((prev) => ({ ...prev, severity: "medium" }))}
-                          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                            reportFilters.severity === "medium"
-                              ? "bg-yellow-600 text-white"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          Medium
-                        </button>
-                        <button
-                          onClick={() => setReportFilters((prev) => ({ ...prev, severity: "high" }))}
-                          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                            reportFilters.severity === "high"
-                              ? "bg-red-600 text-white"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          High
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
-
                 {/* Reports List */}
                 <div className="space-y-4">
                   {(() => {
-                    // Enhanced mock data with severity levels
-                    const enhancedReports = recentReports.map((report) => ({
-                      ...report,
-                      severity: report.id === 1 ? "high" : "medium", // Add severity to existing reports
-                    }))
-
-                    // Add more sample reports for better filtering demonstration
-                    const allReports = [
-                      ...enhancedReports,
-                      {
-                        id: 3,
-                        type: "water",
-                        location: "Sector 12, Block C",
-                        date: "2023-05-25",
-                        status: "resolved",
-                        description: "Complete water supply disruption",
-                        source: "crowdsourced",
-                        severity: "high",
-                      },
-                      {
-                        id: 4,
-                        type: "electricity",
-                        location: "Phase 1, Main Gate",
-                        date: "2023-05-20",
-                        status: "pending",
-                        description: "Flickering lights in common areas",
-                        source: "official",
-                        severity: "low",
-                      },
-                    ]
-
-                    // Filter reports based on selected filters
-                    const filteredReports = allReports.filter((report) => {
-                      const typeMatch = reportFilters.type === "all" || report.type === reportFilters.type
-                      const severityMatch =
-                        reportFilters.severity === "all" || report.severity === reportFilters.severity
-                      return typeMatch && severityMatch
-                    })
-
+                    // Only use real backend data (recentReports)
+                    const filteredReports = recentReports.filter((report) => {
+                      const typeMatch = reportFilters.type === "all" || report.type === reportFilters.type;
+                      return typeMatch;
+                    });
                     if (filteredReports.length === 0) {
                       return (
                         <div className="text-center py-8">
@@ -1727,9 +1779,8 @@ export default function UserDashboard({ user, onLogout }) {
                             Clear Filters
                           </Button>
                         </div>
-                      )
+                      );
                     }
-
                     return filteredReports.map((report) => (
                       <div key={report.id} className="border rounded-lg p-4">
                         <div className="flex items-start justify-between">
@@ -1740,31 +1791,35 @@ export default function UserDashboard({ user, onLogout }) {
                               }`}
                             >
                               {report.type === "electricity" ? (
-                                <Bell className={`w-5 h-5 text-[#F59E0B]`} />
+                                // Bolt icon (yellow)
+                                <svg className="w-5 h-5 text-[#F59E0B]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
                               ) : (
-                                <Bell className={`w-5 h-5 text-[#4F46E5]`} />
+                                // Water drop icon (blue)
+                                <svg className="w-5 h-5 text-[#4F46E5]" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 2C10 2 4 9.5 4 13a6 6 0 0012 0c0-3.5-6-11-6-11zm0 16a4 4 0 01-4-4c0-2.22 2.67-6.22 4-8.09C11.33 7.78 14 11.78 14 14a4 4 0 01-4 4z" />
+                                </svg>
                               )}
                             </div>
                             <div>
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-medium">{report.location}</h3>
-                                <span className="text-xs px-2 py-1 rounded font-medium bg-blue-100 text-blue-700">
-                                  User Report
-                                </span>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded font-medium ${
-                                    report.severity === "high"
-                                      ? "bg-red-100 text-red-700"
-                                      : report.severity === "medium"
-                                        ? "bg-yellow-100 text-yellow-700"
-                                        : "bg-green-100 text-green-700"
-                                  }`}
-                                >
-                                  {report.severity.charAt(0).toUpperCase() + report.severity.slice(1)} Priority
-                                </span>
+                                <h3 className="font-medium">{report.locality || report.location || "Unknown Locality"}</h3>
                               </div>
                               <p className="text-sm text-gray-600 mt-1">{report.description}</p>
-                              <p className="text-xs text-gray-500 mt-2">Reported on {report.date}</p>
+                              <p className="text-xs text-gray-500 mt-2">
+                                Reported on {(() => {
+                                  const dateStr = report.timestamp || report.reportedAt || report.date;
+                                  if (!dateStr) return "-";
+                                  const dateObj = new Date(dateStr);
+                                  if (isNaN(dateObj.getTime())) return "-";
+                                  return dateObj.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+                                })()}
+                              </p>
                             </div>
                           </div>
                           <span
@@ -1777,7 +1832,6 @@ export default function UserDashboard({ user, onLogout }) {
                             {report.status === "resolved" ? "Resolved" : "Pending"}
                           </span>
                         </div>
-
                         {/* Expanded Details */}
                         {expandedReportId === report.id && (
                           <div className="mt-4 pt-4 border-t border-gray-200">
@@ -1863,7 +1917,6 @@ export default function UserDashboard({ user, onLogout }) {
                             )}
                           </div>
                         )}
-
                         <div className="mt-4 flex justify-end">
                           <Button
                             onClick={() => handleViewDetails(report.id)}
@@ -2019,23 +2072,28 @@ export default function UserDashboard({ user, onLogout }) {
                           <p className="text-sm text-gray-600">Receive alerts directly in your browser</p>
                         </div>
                       </div>
-                      <div className="relative inline-block w-12 h-6 rounded-full bg-gray-200">
+                      <div
+                        className={`relative inline-block w-12 h-6 rounded-full ${notificationSettings.browser ? "bg-[#4F46E5]" : "bg-gray-200"} flex-shrink-0`}
+                        onClick={() => handleToggleNotification("browser")}
+                        style={{ cursor: "pointer" }}
+                      >
                         <input
                           type="checkbox"
                           className="opacity-0 w-0 h-0"
                           checked={notificationSettings.browser}
-                          onChange={() => handleToggleNotification("browser")}
+                          readOnly
+                          tabIndex={-1}
+                          style={{ pointerEvents: "none" }}
                         />
                         <span
-                          onClick={() => handleToggleNotification("browser")}
-                          className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
-                            notificationSettings.browser ? "bg-[#4F46E5]" : "bg-gray-300"
-                          }`}
+                          className={`absolute top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200`}
+                          style={{ pointerEvents: "none" }}
                         ></span>
                         <span
-                          className={`absolute cursor-pointer w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
+                          className={`absolute w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
                             notificationSettings.browser ? "transform translate-x-7" : "transform translate-x-1"
                           }`}
+                          style={{ pointerEvents: "none" }}
                         ></span>
                       </div>
                     </div>
@@ -2052,23 +2110,28 @@ export default function UserDashboard({ user, onLogout }) {
                           <p className="text-sm text-gray-600">Receive alerts via WhatsApp messages</p>
                         </div>
                       </div>
-                      <div className="relative inline-block w-12 h-6 rounded-full bg-gray-200">
+                      <div
+                        className={`relative inline-block w-12 h-6 rounded-full ${notificationSettings.whatsapp ? "bg-[#4F46E5]" : "bg-gray-200"} flex-shrink-0`}
+                        onClick={() => handleToggleNotification("whatsapp")}
+                        style={{ cursor: "pointer" }}
+                      >
                         <input
                           type="checkbox"
                           className="opacity-0 w-0 h-0"
                           checked={notificationSettings.whatsapp}
-                          onChange={() => handleToggleNotification("whatsapp")}
+                          readOnly
+                          tabIndex={-1}
+                          style={{ pointerEvents: "none" }}
                         />
                         <span
-                          onClick={() => handleToggleNotification("whatsapp")}
-                          className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
-                            notificationSettings.whatsapp ? "bg-[#4F46E5]" : "bg-gray-300"
-                          }`}
+                          className={`absolute top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200`}
+                          style={{ pointerEvents: "none" }}
                         ></span>
                         <span
-                          className={`absolute cursor-pointer w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
+                          className={`absolute w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
                             notificationSettings.whatsapp ? "transform translate-x-7" : "transform translate-x-1"
                           }`}
+                          style={{ pointerEvents: "none" }}
                         ></span>
                       </div>
                     </div>
@@ -2105,23 +2168,28 @@ export default function UserDashboard({ user, onLogout }) {
                           <p className="text-sm text-gray-600">Receive alerts via email</p>
                         </div>
                       </div>
-                      <div className="relative inline-block w-12 h-6 rounded-full bg-gray-200">
+                      <div
+                        className={`relative inline-block w-12 h-6 rounded-full ${notificationSettings.email ? "bg-[#4F46E5]" : "bg-gray-200"}`}
+                        onClick={() => handleToggleNotification("email")}
+                        style={{ cursor: "pointer" }}
+                      >
                         <input
                           type="checkbox"
                           className="opacity-0 w-0 h-0"
                           checked={notificationSettings.email}
-                          onChange={() => handleToggleNotification("email")}
+                          readOnly
+                          tabIndex={-1}
+                          style={{ pointerEvents: "none" }}
                         />
                         <span
-                          onClick={() => handleToggleNotification("email")}
-                          className={`absolute cursor-pointer top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200 ${
-                            notificationSettings.email ? "bg-[#4F46E5]" : "bg-gray-300"
-                          }`}
+                          className={`absolute top-0 left-0 right-0 bottom-0 rounded-full transition-colors duration-200`}
+                          style={{ pointerEvents: "none" }}
                         ></span>
                         <span
-                          className={`absolute cursor-pointer w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
+                          className={`absolute w-4 h-4 top-1 bg-white rounded-full transition-transform duration-200 ${
                             notificationSettings.email ? "transform translate-x-7" : "transform translate-x-1"
                           }`}
+                          style={{ pointerEvents: "none" }}
                         ></span>
                       </div>
                     </div>
@@ -2134,7 +2202,7 @@ export default function UserDashboard({ user, onLogout }) {
                     disabled={isSubmitting}
                     className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white"
                   >
-                    {isSubmitting ? "Saving..." : "Save Changes"}
+                    {notificationSaved ? "Changes Saved" : isSubmitting ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </div>
@@ -2154,30 +2222,35 @@ export default function UserDashboard({ user, onLogout }) {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                         <input
                           type="text"
-                          value={user.name}
+                          name="name"
+                          value={profile.name}
+                          onChange={handleProfileChange}
                           className="w-full p-2 border rounded-md border-gray-300"
-                          readOnly
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                         <input
                           type="email"
-                          value={user.email}
+                          name="email"
+                          value={profile.email}
+                          onChange={handleProfileChange}
                           className="w-full p-2 border rounded-md border-gray-300"
-                          readOnly
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                         <input
                           type="tel"
+                          name="phone"
+                          value={profile.phone}
+                          onChange={handleProfileChange}
                           placeholder="Add phone number"
                           className="w-full p-2 border rounded-md border-gray-300"
                         />
                       </div>
                     </div>
-                    {/* Update the Profile Information section to display the success message */}
+                    {profileError && <div className="text-red-600 text-sm mt-2">{profileError}</div>}
                     <div className="mt-4">
                       <Button
                         onClick={handleUpdateProfile}
@@ -2186,7 +2259,6 @@ export default function UserDashboard({ user, onLogout }) {
                       >
                         {isSubmitting ? "Updating..." : "Update Profile"}
                       </Button>
-
                       {profileSuccessMessage && (
                         <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-md">
                           <div className="flex items-center">
@@ -2267,7 +2339,18 @@ export default function UserDashboard({ user, onLogout }) {
       </div>
       {/* Add Location Modal */}
       {showAddLocationModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={e => {
+            // Only close if the user clicks directly on the overlay, not the modal content
+            if (e.target === e.currentTarget) {
+              setShowAddLocationModal(false)
+              setEditingLocationId(null)
+              setNewLocation({ name: "", address: "" })
+              setLocationSuccessMessage("")
+            }
+          }}
+        >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -2625,6 +2708,30 @@ export default function UserDashboard({ user, onLogout }) {
           </div>
         </div>
       )}
+      {showEmailVerification && (
+        <EmailVerification
+          email={profile.email}
+          resendTimer={emailResendTimer}
+          resentSuccess={resentSuccess}
+          resentError={resentError}
+          onResend={handleResendEmail}
+          onClose={handleEmailVerificationClose}
+          onGoToLogin={handleEmailVerificationGoToLogin}
+          isLoading={isSubmitting}
+        />
+      )}
+      <OtpModal
+        isOpen={showOtpModal}
+        phone={profile.phone}
+        otp={otp}
+        resendTimer={otpResendTimer}
+        onResend={handleOtpResend}
+        onVerify={handleOtpVerify}
+        onClose={handleOtpClose}
+        onChange={handleOtpChange}
+        error={otpError}
+        isLoading={otpLoading}
+      />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import NProgressProvider from "@/components/nprogress-provider";
+import BackToTop from "@/components/back-to-top";
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -30,6 +31,7 @@ export default function RootLayout({
         <AuthProvider>
           <NProgressProvider />
           {children}
+          <BackToTop />
         </AuthProvider>
       </body>
     </html>
