@@ -1,30 +1,32 @@
-import React, { useState, useEffect } from "react";
-import { MapPin, Search, X, Loader2, Navigation } from "lucide-react";
+
+import React, { useState, useEffect, useRef } from "react";
+import { MapPin, Search, X, Loader2 } from "lucide-react";
 import clsx from "clsx";
 
-export default function LocationDetails({
+function LocationDetails({
   location,
   onChange,
-  formErrors,
-  localityInputRef,
-  localityInputKey,
-  isSearching,
-  searchResults,
-  showResults,
-  searchError,
   onSearch,
   onClearSearch,
   onPlaceSelect,
   onGetCurrentLocation,
   isGettingLocation,
+  formErrors,
+  setFormErrors,
+  localityInputRef,
+  localityInputKey,
+  isSearching,
+  searchResults,
+  showResults,
+  searchError
 }) {
 
 
-  // Debug log for dropdown rendering
-  console.log("[LocationDetails] showResults:", showResults, "searchResults.length:", searchResults?.length);
-
   // Track if search has been triggered
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Track focus for info message
+  const [isLocalityFocused, setIsLocalityFocused] = useState(false);
 
   // Reset hasSearched if input is cleared
   useEffect(() => {
@@ -32,8 +34,6 @@ export default function LocationDetails({
   }, [location.locality]);
 
   const handleSearchClick = () => {
-    console.log("Search button clicked!");
-    console.log("Location value:", location.locality);
     setHasSearched(true);
     onSearch();
   };
@@ -57,14 +57,15 @@ export default function LocationDetails({
               type="button"
               onClick={onGetCurrentLocation}
               disabled={isGettingLocation}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer disabled:opacity-50"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-full p-1 flex items-center justify-center text-blue-600 hover:bg-blue-50 focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 transition-all cursor-pointer disabled:opacity-50"
               aria-label="Get current location"
               title="Click to get your current location"
+              style={{ minWidth: 28, minHeight: 28 }}
             >
               {isGettingLocation ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
               ) : (
-                <Navigation className="w-5 h-5" />
+                <MapPin className="w-5 h-5 text-blue-600" />
               )}
             </button>
             <input
@@ -76,38 +77,43 @@ export default function LocationDetails({
               onChange={onChange}
               placeholder="Enter your locality"
               className={clsx(
-                "pl-10 pr-12 h-12 w-full border-2 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md",
+                "pl-14 pr-12 h-12 w-full border-2 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md align-middle",
                 formErrors.locality || searchError ? "border-red-500 bg-red-50" : "border-gray-300"
               )}
               ref={localityInputRef}
               autoComplete="off"
+              onFocus={() => {
+                setIsLocalityFocused(true);
+                if (formErrors.locality && setFormErrors) setFormErrors((prev) => ({ ...prev, locality: null }));
+              }}
+              onBlur={() => setIsLocalityFocused(false)}
             />
             {/* Search/X Icon Logic */}
-            {location.locality.trim() && !isSearching && location.locality.trim().length < 3 && (
+            {location.locality.trim() && !isSearching && (showResults || searchResults.length > 0) ? (
               <button
                 type="button"
                 onClick={handleClearClick}
+                onTouchEnd={e => { e.preventDefault(); handleClearClick(); }}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Clear locality"
                 style={{ zIndex: 10, cursor: 'pointer', background: 'transparent', border: 'none' }}
               >
                 <X className="w-4 h-4" />
               </button>
-            )}
-            {location.locality.trim() && !isSearching && location.locality.trim().length >= 3 && (
+            ) : location.locality.trim() && !isSearching && location.locality.trim().length >= 3 ? (
               <button
                 type="button"
                 onClick={handleSearchClick}
+                onTouchEnd={e => { e.preventDefault(); handleSearchClick(); }}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Search locality"
                 tabIndex={0}
-                role="button"
                 style={{ zIndex: 10, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { handleSearchClick(); } }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSearchClick(); } }}
               >
                 <Search className="w-4 h-4 pointer-events-none" />
               </button>
-            )}
+            ) : null}
             {location.locality.trim() && isSearching && (
               <button
                 type="button"
@@ -123,31 +129,45 @@ export default function LocationDetails({
             {/* Search Results Dropdown */}
             {showResults && searchResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                {searchResults.map((result, index) => (
-                  <button
-                    key={result.place_id}
-                    type="button"
-                    onClick={() => onPlaceSelect(result)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <MapPin className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {result.structured_formatting?.main_text || result.description}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {result.structured_formatting?.secondary_text || ''}
-                        </p>
+                {searchResults.map((result, index) => {
+                  // For new API: placeId, structuredFormat.mainText.text, structuredFormat.secondaryText.text, text.text
+                  const key = result.placeId || result.place_id || index;
+                  const mainText = result.structuredFormat?.mainText?.text || result.text?.text || '';
+                  const secondaryText = result.structuredFormat?.secondaryText?.text || '';
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onPlaceSelect(result)}
+                      onTouchEnd={e => { e.preventDefault(); onPlaceSelect(result); }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <MapPin className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {mainText}
+                          </p>
+                          {secondaryText && (
+                            <p className="text-xs text-gray-500 truncate">
+                              {secondaryText}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
           
-          {/* Error Messages */}
+          {/* Info or Error Messages */}
+          {isLocalityFocused && !formErrors.locality && !searchError && (
+            <p className="text-blue-600 text-sm mt-1">
+              Click on the location icon for automatic fetching or enter at least 3 characters to search.
+            </p>
+          )}
           {(formErrors.locality || searchError) && (
             <p className="text-red-500 text-sm mt-1 flex items-center">
               <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -241,3 +261,6 @@ export default function LocationDetails({
     </div>
   );
 }
+
+export default LocationDetails;
+//

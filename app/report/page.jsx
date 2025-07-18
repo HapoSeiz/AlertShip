@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
@@ -72,16 +72,20 @@ export default function ReportPage() {
     handleGetCurrentLocation,
   } = useReportForm({ user, toast, router, isLoaded });
 
-  // Accessibility: focus first invalid field on error
+  // Track if form was just submitted
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  // Accessibility: focus first invalid field only after submit
   useEffect(() => {
-    if (formErrors) {
+    if (hasSubmitted && formErrors) {
       const firstErrorField = Object.keys(formErrors).find((key) => formErrors[key]);
       if (firstErrorField) {
         const el = document.querySelector(`[name="${firstErrorField}"]`);
         if (el) el.focus();
       }
+      setHasSubmitted(false); // Reset after focusing
     }
-  }, [formErrors]);
+  }, [formErrors, hasSubmitted]);
 
   // Route protection with proper loading state check
   useEffect(() => {
@@ -90,20 +94,14 @@ export default function ReportPage() {
     }
   }, [loading, isAuthenticated, router]);
 
+
   // Only render after auth state is loaded
   if (loading) return null;
   if (!isAuthenticated) return null;
-  
-  // Show loading state while Google Maps API is loading
+
+  // Show nothing while Google Maps API is loading
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Google Maps API...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -127,12 +125,21 @@ export default function ReportPage() {
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl sm:text-3xl font-bold text-[#1F2937]">Report an Outage</h1>
               </div>
-              <form onSubmit={handleSubmitReport} className="space-y-6" noValidate aria-live="polite">
+              <form
+                onSubmit={e => {
+                  setHasSubmitted(true);
+                  handleSubmitReport(e);
+                }}
+                className="space-y-6"
+                noValidate
+                aria-live="polite"
+              >
                 <OutageTypeSelector value={formData.issue.type} onChange={handleTypeChange} />
                 <LocationDetails
                   location={formData.location}
                   onChange={handleLocationChange}
                   formErrors={formErrors}
+                  setFormErrors={setFormErrors}
                   localityInputRef={localityInputRef}
                   localityInputKey={localityInputKey}
                   isSearching={isSearching}
@@ -147,7 +154,10 @@ export default function ReportPage() {
                 />
                 <DescriptionInput
                   value={formData.issue.description}
-                  onChange={handleDescriptionChange}
+                  onChange={e => {
+                    setHasSubmitted(false); // Reset so focus doesn't jump while typing
+                    handleDescriptionChange(e);
+                  }}
                   error={formErrors.description}
                 />
                 <PhotoUpload

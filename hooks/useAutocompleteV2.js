@@ -11,33 +11,25 @@ import { useCallback, useRef, useEffect } from "react";
  * @returns {Object} { fetchPredictions, fetchPlaceDetails, isReady }
  */
 export default function useAutocompleteV2({ isLoaded, inputValue, sessionTokenRef }) {
-  const placesLibRef = useRef(null);
   const isInitialized = useRef(false);
 
   // Initialize the Places API when loaded
   useEffect(() => {
     const initializePlacesAPI = async () => {
       if (!isLoaded || isInitialized.current || !window.google?.maps) return;
-      
       try {
         // Import the Places API library using the new dynamic import
-        const { AutocompleteService, PlacesService, AutocompleteSessionToken } = await window.google.maps.importLibrary("places");
-        
-        placesLibRef.current = { AutocompleteService, PlacesService, AutocompleteSessionToken };
-        
+        const { AutocompleteSessionToken } = await window.google.maps.importLibrary("places");
         // Initialize session token if not exists
         if (!sessionTokenRef.current) {
           sessionTokenRef.current = new AutocompleteSessionToken();
         }
-        
         isInitialized.current = true;
-        console.log("Places API initialized successfully");
+        console.log("Places API initialized successfully (new API)");
       } catch (error) {
         console.error("Failed to initialize Places API:", error);
-        placesLibRef.current = null;
       }
     };
-
     initializePlacesAPI();
   }, [isLoaded, sessionTokenRef]);
 
@@ -48,49 +40,29 @@ export default function useAutocompleteV2({ isLoaded, inputValue, sessionTokenRe
    */
   const fetchPredictions = useCallback(async (customInput = null) => {
     const query = customInput || inputValue;
-    
-    if (!placesLibRef.current || !query || query.length < 3) {
+    if (!isInitialized.current || !window.google?.maps?.places || !query || query.length < 3) {
       return [];
     }
-
-    const { AutocompleteService } = placesLibRef.current;
-
     try {
       // Define location bias for India/Gurgaon area
-      const locationBias = new window.google.maps.LatLngBounds(
-        new window.google.maps.LatLng(28.0, 76.5), // Southwest corner (Gurgaon area)
-        new window.google.maps.LatLng(28.8, 77.5)  // Northeast corner
-      );
-
-      // Create autocomplete service
-      const autocompleteService = new AutocompleteService();
-
-      // Fetch autocomplete suggestions using the service
+      const locationBias = {
+        west: 76.5,
+        south: 28.0,
+        east: 77.5,
+        north: 28.8
+      };
       const request = {
         input: query,
-        // types removed for broader results (apartments, addresses, etc)
-        componentRestrictions: { country: "IN" }, // Restrict to India
-        bounds: locationBias,
-        sessionToken: sessionTokenRef.current
+        sessionToken: sessionTokenRef.current,
+        locationBias,
+        // componentRestrictions is not supported in the new API
       };
-
-      console.log("Fetching predictions for:", query, "with request:", request);
-      
-      return new Promise((resolve) => {
-        autocompleteService.getPlacePredictions(request, (predictions, status) => {
-          console.log("AutocompleteService status:", status);
-          console.log("Got predictions:", predictions);
-          
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-            resolve(predictions);
-          } else {
-            console.error("Error fetching predictions:", status);
-            resolve([]);
-          }
-        });
-      });
+      console.log("Fetching predictions (new API) for:", query, "with request:", request);
+      const { suggestions } = await window.google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+      // Each suggestion has a placePrediction property
+      return suggestions.map(s => s.placePrediction);
     } catch (error) {
-      console.error("Error fetching predictions:", error);
+      console.error("Error fetching predictions (new API):", error);
       return [];
     }
   }, [inputValue]);
@@ -101,79 +73,49 @@ export default function useAutocompleteV2({ isLoaded, inputValue, sessionTokenRe
    * @returns {Promise<Object|null>} Place details object or null
    */
   const fetchPlaceDetails = useCallback(async (placeId) => {
-    if (!placesLibRef.current || !placeId) {
+    if (!isInitialized.current || !window.google?.maps?.places || !placeId) {
       return null;
     }
-
-    const { PlacesService, AutocompleteSessionToken } = placesLibRef.current;
-
     try {
-      // Create a dummy element for PlacesService (required but not used)
-      const dummyElement = document.createElement('div');
-      
-      // Create a PlacesService instance
-      const placesService = new PlacesService(dummyElement);
-
-      // Fetch place details with required fields
-      const request = {
-        placeId: placeId,
-        fields: [
-          'place_id',
-          'name',
-          'formatted_address',
-          'address_components',
-          'geometry'
-        ],
-        sessionToken: sessionTokenRef.current
-      };
-
-      return new Promise((resolve) => {
-        placesService.getDetails(request, (place, status) => {
-          // Create new session token for next search (billing optimization)
-          if (placesLibRef.current?.AutocompleteSessionToken) {
-            sessionTokenRef.current = new placesLibRef.current.AutocompleteSessionToken();
-          }
-
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
-            // Transform to match your existing format
-            const transformedPlace = {
-              place_id: place.place_id,
-              name: place.name || "",
-              formatted_address: place.formatted_address || "",
-              address_components: place.address_components || [],
-              geometry: {
-                location: {
-                  lat: () => place.geometry?.location?.lat() || 0,
-                  lng: () => place.geometry?.location?.lng() || 0
-                }
-              }
-            };
-
-            resolve(transformedPlace);
-          } else {
-            console.error("Error fetching place details:", status);
-            resolve(null);
-          }
-        });
+      // The new API expects a PlacePrediction object, not just a placeId
+      // So fetchPredictions should be called first, and the correct prediction passed in
+      // But for compatibility, we can search predictions for the matching placeId
+      // (In your app, you should pass the full prediction object instead of just placeId)
+      // For now, we fetch predictions for the current input and find the matching one
+      const { suggestions } = await window.google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input: inputValue,
+        sessionToken: sessionTokenRef.current,
       });
+      const prediction = suggestions.map(s => s.placePrediction).find(p => p.placeId === placeId);
+      if (!prediction) return null;
+      const place = prediction.toPlace();
+      // Only request supported fields for the new API
+      await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "addressComponents", "location"] });
+      // Transform to match your existing format
+      return {
+        place_id: place.id,
+        name: place.displayName || "",
+        formatted_address: place.formattedAddress || "",
+        address_components: place.addressComponents || [],
+        geometry: {
+          location: {
+            lat: () => place.location?.lat || 0,
+            lng: () => place.location?.lng || 0
+          }
+        }
+      };
     } catch (error) {
-      console.error("Error fetching place details:", error);
-      
-      // Create new session token even on error to avoid billing issues
-      if (placesLibRef.current?.AutocompleteSessionToken) {
-        sessionTokenRef.current = new placesLibRef.current.AutocompleteSessionToken();
-      }
-      
+      console.error("Error fetching place details (new API):", error);
       return null;
     }
-  }, [sessionTokenRef]);
+  }, [sessionTokenRef, inputValue]);
 
   /**
    * Reset session token manually (useful for clearing search state)
    */
   const resetSessionToken = useCallback(() => {
-    if (placesLibRef.current?.AutocompleteSessionToken) {
-      sessionTokenRef.current = new placesLibRef.current.AutocompleteSessionToken();
+    if (window.google?.maps?.places?.AutocompleteSessionToken) {
+      sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
     }
   }, [sessionTokenRef]);
 
@@ -181,6 +123,6 @@ export default function useAutocompleteV2({ isLoaded, inputValue, sessionTokenRe
     fetchPredictions,
     fetchPlaceDetails,
     resetSessionToken,
-    isReady: isInitialized.current && !!placesLibRef.current
+    isReady: isInitialized.current
   };
 }
