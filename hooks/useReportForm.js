@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import useFormValidation from "@/components/report/useFormValidation";
+import useFormValidation from "@/hooks/useFormValidation";
 import useAutocompleteV2 from "@/hooks/useAutocompleteV2";
 
 export function useReportForm({ user, toast, router, isLoaded }) {
@@ -100,18 +100,27 @@ export function useReportForm({ user, toast, router, isLoaded }) {
     if (!fetchPlaceDetails) return;
 
     try {
-      const place = await fetchPlaceDetails(prediction.place_id);
-      
-      if (!place?.address_components) return;
+      // Support both new and legacy API: prefer placeId, fallback to place_id
+      const placeId = prediction.placeId || prediction.place_id;
+      const place = await fetchPlaceDetails(placeId);
+      // Support both address_components (legacy) and addressComponents (new API)
+      const addressComponents = place.address_components || place.addressComponents || [];
+      if (!addressComponents.length) return;
 
       const getComponent = (type) => {
-        const comp = place.address_components.find((c) => c.types.includes(type));
-        return comp ? comp.long_name : "";
+        const comp = addressComponents.find((c) => {
+          const types = c.types || c.type || [];
+          return Array.isArray(types) ? types.includes(type) : types === type;
+        });
+        return comp ? (comp.long_name || comp.longName || comp.longText || "") : "";
       };
       
       const getAllComponents = (type) => {
-        return place.address_components
-          ? place.address_components.filter((c) => c.types.includes(type)).map((c) => c.long_name)
+        return addressComponents
+          ? addressComponents.filter((c) => {
+              const types = c.types || c.type || [];
+              return Array.isArray(types) ? types.includes(type) : types === type;
+            }).map((c) => c.long_name || c.longName || c.longText || "")
           : [];
       };
       
