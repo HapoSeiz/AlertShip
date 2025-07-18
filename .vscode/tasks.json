@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Install @googlemaps/js-api-loader",
+			"command": "pnpm",
+			"args": [
+				"add",
+				"@googlemaps/js-api-loader"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,60 @@ export default function LandingPage() {
   const router = useRouter()
   const searchParams = useSearchParams();
   const [location, setLocation] = useState("")
+  const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const [showInfoMessage, setShowInfoMessage] = useState(false)
+  const locationAreaRef = useRef(null)
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const dropdownRef = useRef(null)
+  const [selectedFromDropdown, setSelectedFromDropdown] = useState(false)
+  // All Google Places/Maps API code removed
   const { isAuthenticated, openSignUp, openLogIn } = useAuth()
+  
+  // Location search using Photon API
+  const handleLocationSearch = async () => {
+    console.log('handleLocationSearch called', { location });
+    if (location.trim().length < 3) {
+      console.warn('Input too short', { location });
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    setShowDropdown(true);
+    try {
+      const response = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(location)}&limit=5&lang=en`);
+      const data = await response.json();
+      const predictions = data.features || [];
+      setSearchResults(predictions);
+      console.log('Predictions:', predictions);
+    } catch (err) {
+      setSearchResults([]);
+      console.error('Error fetching predictions', err);
+    }
+    setIsSearching(false);
+  };
+  
+  
+  // Clear search results and dropdown if input is cleared or too short
+  useEffect(() => {
+    if (location.trim().length < 3) {
+      setSearchResults([]);
+      setShowDropdown(false);
+    }
+  }, [location]);
+
+  // Hide dropdown on outside click
+  useEffect(() => {
+    if (!showDropdown) return;
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && !locationAreaRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
 
   useEffect(() => {
     if (searchParams.get("login") === "true") {
@@ -36,6 +89,35 @@ export default function LandingPage() {
     if (!location.trim()) return
     router.push(`/outages?location=${encodeURIComponent(location.trim())}`)
   }
+
+  // Fetch user's current location
+  const handleGetCurrentLocation = async () => {
+    if (!navigator.geolocation) return
+    setIsGettingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // Use reverse geocoding here if needed, for now just set as 'Current Location'
+        setLocation("Current Location")
+        setIsGettingLocation(false)
+      },
+      (error) => {
+        setIsGettingLocation(false)
+        // Optionally show error message
+      }
+    )
+  }
+
+  // Show info message until user clicks outside the location input area
+  useEffect(() => {
+    if (!showInfoMessage) return;
+    function handleClickOutside(event) {
+      if (locationAreaRef.current && !locationAreaRef.current.contains(event.target)) {
+        setShowInfoMessage(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showInfoMessage]);
 
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>
@@ -57,30 +139,136 @@ export default function LandingPage() {
                 Check and report electricity and water disruptions<br />in your area.
               </p>
 
-              {/* Location Input */}
-              <div className="bg-white rounded-2xl p-4 shadow-lg border max-w-md mx-auto lg:mx-0 mb-6">
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-5 h-5 text-[#4F46E5] flex-shrink-0" />
-                  <Input
-                    type="text"
-                    placeholder="Enter your location"
-                    className="border-0 focus:ring-0 text-base placeholder-gray-500 w-full"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        handleLocationSubmit()
-                      }
-                    }}
-                  />
+
+              {/* Location Input (Refactored) */}
+              <div ref={locationAreaRef} className="bg-white rounded-2xl p-4 shadow-lg border max-w-md mx-auto lg:mx-0 mb-6">
+                <div className="flex items-center w-full" onFocus={() => setShowInfoMessage(true)} onClick={() => setShowInfoMessage(true)} tabIndex={-1}>
+                  {/* Input group with icons */}
+                  <div className="flex items-center flex-1 relative bg-white rounded-xl px-2 py-1">
+                    {/* Location Button */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!navigator.geolocation) return;
+                        setIsGettingLocation(true);
+                        navigator.geolocation.getCurrentPosition(async (position) => {
+                          const { latitude, longitude } = position.coords;
+                          try {
+                            // Use OpenStreetMap Nominatim reverse geocoding with English language
+                            const response = await fetch(
+                              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+                              { headers: { 'Accept-Language': 'en' } }
+                            );
+                            const data = await response.json();
+                            // Try to get city, fallback to town/village/state
+                            const city = data.address.city || data.address.town || data.address.village || data.address.state || '';
+                            setLocation(city);
+                          } catch (err) {
+                            setLocation('');
+                          }
+                          setIsGettingLocation(false);
+                        }, () => setIsGettingLocation(false));
+                      }}
+                      disabled={isGettingLocation}
+                      className="bg-white border-0 rounded-full p-1 flex items-center justify-center text-[#4F46E5] hover:bg-[#4F46E5]/10 focus:bg-[#4F46E5]/20 focus:ring-2 focus:ring-[#4F46E5] transition-all cursor-pointer disabled:opacity-50 mr-1"
+                      aria-label="Get current location"
+                      title="Click to get your current location"
+                      style={{ minWidth: 40, minHeight: 40 }}
+                    >
+                      {isGettingLocation ? (
+                        <svg className="w-7 h-7 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="#4F46E5" strokeWidth="4"></circle><path className="opacity-75" fill="#4F46E5" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                      ) : (
+                        <MapPin className="w-7 h-7 text-[#4F46E5]" />
+                      )}
+                    </button>
+                    {/* Input with search icon inside */}
+                    <div className="relative w-full">
+                      <Input
+                        type="text"
+                        placeholder="Enter your city"
+                        className="border-0 focus:ring-0 text-base placeholder-gray-500 w-full bg-transparent pr-10"
+                        value={location || ""}
+                        onChange={(e) => {
+                          setLocation(e.target.value || "");
+                          setSelectedFromDropdown(false);
+                        }}
+                        onFocus={() => setShowInfoMessage(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (selectedFromDropdown) {
+                              handleLocationSubmit();
+                            } else if ((location || "").trim().length >= 3) {
+                              handleLocationSearch();
+                            }
+                          }
+                        }}
+                      />
+                      {/* Search Icon Button (inside input, right) */}
+                      {(location || "").trim().length >= 3 && (
+                        <button
+                          type="button"
+                          onClick={handleLocationSearch}
+                          className="absolute top-1/2 right-2 -translate-y-1/2 bg-transparent border-0 rounded-full p-0 flex items-center justify-center text-[#4F46E5] hover:bg-[#4F46E5]/10 focus:bg-[#4F46E5]/20 focus:ring-2 focus:ring-[#4F46E5] transition-all cursor-pointer"
+                          aria-label="Search location"
+                          style={{ minWidth: 28, minHeight: 28, zIndex: 50, pointerEvents: 'auto' }}
+                        >
+                          {isSearching ? (
+                            <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="#4F46E5" strokeWidth="4"></circle><path className="opacity-75" fill="#4F46E5" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                          ) : (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                          )}
+                        </button>
+                      )}
+                      {/* Dropdown for search results */}
+                      {showDropdown && searchResults.length > 0 && (
+                        <div ref={dropdownRef} className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                          {searchResults.map((result, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                // Extract city name from Photon API response
+                                const city = result.properties.city || result.properties.name || "";
+                                setLocation(city);
+                                setSelectedFromDropdown(true);
+                                setShowDropdown(false);
+                              }}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                            >
+                              <div className="flex items-center">
+                                <MapPin className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {result.properties.name}
+                                    {result.properties.city && result.properties.city !== result.properties.name && `, ${result.properties.city}`}
+                                    {result.properties.country && `, ${result.properties.country}`}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {/* All Google Places/Maps API code removed */}
+                    </div>
+                  </div>
+                  {/* Check Button (always visible, outside input group) */}
                   <Button
                     type="button"
                     onClick={handleLocationSubmit}
-                    className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-6 py-2 rounded-xl"
+                    className="ml-3 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-6 py-2 rounded-xl disabled:bg-[#4F46E5] disabled:text-white disabled:opacity-100"
+                    disabled={!selectedFromDropdown}
+                    style={{ pointerEvents: !selectedFromDropdown ? 'none' : undefined }}
                   >
                     Check
                   </Button>
                 </div>
+                {/* Info Message */}
+                {showInfoMessage && (
+                  <p className="text-[#4F46E5] text-sm mt-2 text-center">
+                    Click the location icon for automatic fetching or enter at least 3 characters to search.
+                  </p>
+                )}
               </div>
 
               {/* CTA Buttons */}
