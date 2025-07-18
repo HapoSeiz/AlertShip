@@ -163,11 +163,16 @@ export default function LandingPage() {
                             // Try to get city, fallback to town/village/state
                             const city = data.address.city || data.address.town || data.address.village || data.address.state || '';
                             setLocation(city);
+                            setSelectedFromDropdown(true); // Enable Check button after autofetch
                           } catch (err) {
                             setLocation('');
+                            setSelectedFromDropdown(false);
                           }
                           setIsGettingLocation(false);
-                        }, () => setIsGettingLocation(false));
+                        }, () => {
+                          setIsGettingLocation(false);
+                          setSelectedFromDropdown(false);
+                        });
                       }}
                       disabled={isGettingLocation}
                       className="bg-white border-0 rounded-full p-1 flex items-center justify-center text-[#4F46E5] hover:bg-[#4F46E5]/10 focus:bg-[#4F46E5]/20 focus:ring-2 focus:ring-[#4F46E5] transition-all cursor-pointer disabled:opacity-50 mr-1"
