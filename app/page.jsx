@@ -35,6 +35,8 @@ export default function LandingPage() {
   // All Google Places/Maps API code removed
   const { isAuthenticated, openSignUp, openLogIn } = useAuth()
   
+  // Track input focus for button color feedback
+  const [inputFocused, setInputFocused] = useState(false);
   // Location search using Photon API
   const handleLocationSearch = async () => {
     console.log('handleLocationSearch called', { location });
@@ -136,7 +138,7 @@ export default function LandingPage() {
                 Local Outages
               </h1>
               <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Check and report electricity and water disruptions<br />in your area.
+                Check and report electricity and water disruptions in your area.
               </p>
 
 
@@ -197,7 +199,11 @@ export default function LandingPage() {
                           setLocation(e.target.value || "");
                           setSelectedFromDropdown(false);
                         }}
-                        onFocus={() => setShowInfoMessage(true)}
+                        onFocus={() => {
+                          setShowInfoMessage(true);
+                          setInputFocused(true);
+                        }}
+                        onBlur={() => setInputFocused(false)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             if (selectedFromDropdown) {
@@ -226,7 +232,14 @@ export default function LandingPage() {
                       )}
                       {/* Dropdown for search results */}
                       {showDropdown && searchResults.length > 0 && (
-                        <div ref={dropdownRef} className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                        <div
+                          ref={dropdownRef}
+                          className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-[100] max-h-60 overflow-y-auto w-full"
+                          style={{
+                            minWidth: '220px',
+                            maxWidth: '480px',
+                          }}
+                        >
                           {searchResults.map((result, idx) => (
                             <button
                               key={idx}
@@ -261,7 +274,9 @@ export default function LandingPage() {
                   <Button
                     type="button"
                     onClick={handleLocationSubmit}
-                    className="ml-3 bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white px-6 py-2 rounded-xl disabled:bg-[#4F46E5] disabled:text-white disabled:opacity-100"
+                    className={`ml-3 px-6 py-2 rounded-xl text-white font-semibold transition-colors
+                      bg-[#4F46E5] hover:bg-[#4F46E5]/90
+                      disabled:bg-[#4F46E5] disabled:text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                     disabled={!selectedFromDropdown}
                     style={{ pointerEvents: !selectedFromDropdown ? 'none' : undefined }}
                   >
