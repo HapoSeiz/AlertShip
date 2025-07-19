@@ -30,6 +30,7 @@ export default function OutagesPage() {
   const [showUpcomingOutages, setShowUpcomingOutages] = useState(false)
   const [showReportForm, setShowReportForm] = useState(false)
   const [viewMode, setViewMode] = useState("list") // "list" or "map"
+  const [cityInput, setCityInput] = useState(location || '') // Add city input state
   // Add a new state to track which outage details are being shown
   const [expandedOutageId, setExpandedOutageId] = useState(null)
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -38,11 +39,11 @@ export default function OutagesPage() {
 
   useEffect(() => {
     const fetchReports = async () => {
-      const reports = await fetchOutageReportsByCity(location);
+      const reports = await fetchOutageReportsByCity(cityInput || location);
       setOutages(reports);
     }
     fetchReports();
-  }, [location]);
+  }, [location, cityInput]);
 
   const {
     isAuthenticated, user, openSignUp, openLogIn, signOut
@@ -255,7 +256,7 @@ export default function OutagesPage() {
           {/* Map View */}
           {viewMode === "map" && (
             <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-              <OutageMap />
+              <OutageMap city={location} />
             </div>
           )}
 
