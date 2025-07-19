@@ -7,7 +7,7 @@ export async function GET(req) {
       status: 400,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+
       },
     });
   }
@@ -16,7 +16,7 @@ export async function GET(req) {
 
   try {
     const photonRes = await fetch(photonUrl);
-    if (!photonRes.ok) throw new Error('Photon API error');
+    if (!photonRes.ok) throw new Error(`Photon API error: ${photonRes.status} ${photonRes.statusText}`);
     const data = await photonRes.json();
     return new Response(JSON.stringify(data), {
       status: 200,

@@ -41,10 +41,7 @@ export default function LandingPage() {
   
   // Location search using Photon API (via Next.js proxy)
   const handleLocationSearch = async () => {
-    console.log('[MOBILE DEBUG] handleLocationSearch called', { location });
-
     if (location.trim().length < 3) {
-      console.warn('[MOBILE DEBUG] Input too short', { location });
       setIsSearching(false);
       return;
     }
@@ -54,21 +51,17 @@ export default function LandingPage() {
 
     try {
       const apiUrl = `/api/photon?q=${encodeURIComponent(location)}`;
-      console.log('[MOBILE DEBUG] Fetching from:', apiUrl);
 
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        throw new Error('Photon proxy error');
+        const errorDetails = `Photon proxy error: ${response.status} ${response.statusText}`;  
+        throw new Error(errorDetails);  
       }
       const data = await response.json();
       const predictions = data.features || [];
 
-      console.log('[MOBILE DEBUG] Photon API response:', data);
-      console.log('[MOBILE DEBUG] Extracted predictions:', predictions);
-
       setSearchResults(predictions);
     } catch (err) {
-      console.error('[MOBILE DEBUG] Error fetching predictions:', err);
       setSearchResults([]);
     }
 
@@ -108,7 +101,9 @@ export default function LandingPage() {
       setTimeout(() => {
         try {
           dropdownRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } catch (e) {}
+        } catch (e) {
+          console.error("Error scrolling dropdown into view:", e);  
+        }
       }, 50);
     }
     return () => {
