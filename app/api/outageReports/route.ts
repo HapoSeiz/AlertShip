@@ -1,24 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { collection, addDoc, getDocs, query, where, Query, DocumentData } from 'firebase/firestore';
-import { db } from '@/firebase/firebase';
-import { getAuth } from '@/firebase/firebaseAdmin';
+// No need to import collection/addDoc from admin SDK
+import { db, getAuth } from '@/firebase/firebaseAdmin';
 // For server-side geocoding
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_GEOCODING_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // POST: Add outage report to the database
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    let userEmail = body.email;
-    // If uid is provided, fetch email from Firebase Admin
-    if (body.uid) {
+    // Get ID token from Authorization header
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+    let decodedToken = null;
+    console.log('[API] Received POST /api/outageReports');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const idToken = authHeader.split('Bearer ')[1];
       try {
-        const userRecord = await getAuth().getUser(body.uid);
-        userEmail = userRecord.email;
-      } catch (e) {
-        // fallback to body.email if lookup fails
+        decodedToken = await getAuth().verifyIdToken(idToken);
+        console.log('[API] Decoded Firebase ID token:', decodedToken);
+      } catch (err) {
+        console.error('[API] Invalid or expired Firebase ID token', err);
+        return NextResponse.json({ success: false, error: 'Unauthorized: Invalid or expired token' }, { status: 401 });
       }
+    } else {
+      console.error('[API] No Authorization header provided');
+      return NextResponse.json({ success: false, error: 'Unauthorized: No token provided' }, { status: 401 });
     }
+
+    let body = null;
+    try {
+      body = await request.json();
+      console.log('[API] Parsed request body:', body);
+    } catch (err) {
+      console.error('[API] Error parsing request body:', err);
+      return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
+    }
+
+    // Use user info from decoded token
+    const userEmail = decodedToken.email;
+    const userUid = decodedToken.uid;
     const source = userEmail === 'alertshipdotco@gmail.com' ? 'official' : 'crowdsourced';
 
     // Geocode address on the server with detailed logging
@@ -57,15 +75,22 @@ export async function POST(request: NextRequest) {
       console.error("[Geocoding] Server-side geocoding failed", geoErr);
     }
 
-    const docRef = await addDoc(collection(db, 'outageReports'), {
-      ...body,
-      uid: body.uid,
-      email: userEmail,
-      source,
-      lat,
-      lng,
-      timestamp: new Date().toISOString()
-    });
+    let docRef = null;
+    try {
+      docRef = await db.collection('outageReports').add({
+        ...body,
+        uid: userUid,
+        email: userEmail,
+        source,
+        lat,
+        lng,
+        timestamp: new Date().toISOString()
+      });
+      console.log('[API] Successfully added outage report. Doc ID:', docRef.id);
+    } catch (err) {
+      console.error('[API] Error adding document to Firestore:', err);
+      return NextResponse.json({ success: false, error: 'Failed to add report (Firestore error)' }, { status: 500 });
+    }
     return NextResponse.json({
       success: true,
       id: docRef.id,
@@ -87,14 +112,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get('city');
 
-    let q: Query<DocumentData> = collection(db, 'outageReports');
-    
+    let ref = db.collection('outageReports');
     if (city) {
-      q = query(q, where('city', '==', city));
+      ref = ref.where('city', '==', city);
     }
 
-    const querySnapshot = await getDocs(q);
-    const reports = querySnapshot.docs.map(doc => ({
+    const snapshot = await ref.get();
+    const reports = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));

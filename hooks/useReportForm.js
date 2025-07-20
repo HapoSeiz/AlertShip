@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { getAuth } from "firebase/auth";
 import useFormValidation from "@/hooks/useFormValidation";
 import useAutocompleteV2 from "@/hooks/useAutocompleteV2";
 
@@ -438,7 +439,7 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
         uid: user?.uid,
         email: user?.email,
       };
-      
+
       // Always use browser coordinates if locationSource is 'browser'
       if (formData.locationSource === 'browser' && formData.browserLat && formData.browserLng) {
         console.log("Using browser coordinates for submission:", formData.browserLat, formData.browserLng);
@@ -449,23 +450,41 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
         payload.lat = formData.lat;
         payload.lng = formData.lng;
       }
-      
+
+
+      // Always get the current user from Firebase Auth instance
+      let idToken = null;
+      try {
+        const currentUser = getAuth().currentUser;
+        if (currentUser) {
+          idToken = await currentUser.getIdToken();
+          console.log("[Report Submit] Got ID token:", idToken);
+        } else {
+          console.warn("[Report Submit] No currentUser found in Firebase Auth");
+        }
+      } catch (err) {
+        console.error("[Report Submit] Error getting ID token:", err);
+      }
+
       console.log("Final payload coordinates:", payload.lat, payload.lng);
       console.log("Location source:", formData.locationSource);
       let res, result;
+      const headers = idToken ? { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` } : { "Content-Type": "application/json" };
       if (formData.user.photo) {
         const fd = new FormData();
         Object.entries(payload).forEach(([k, v]) => fd.append(k, v));
         fd.append("photo", formData.user.photo);
+        if (idToken) fd.append("idToken", idToken); // fallback for FormData
         res = await fetch("/api/outageReports", {
           method: "POST",
           body: fd,
           signal: abortControllerRef.current.signal,
+          headers: idToken ? { "Authorization": `Bearer ${idToken}` } : undefined,
         });
       } else {
         res = await fetch("/api/outageReports", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
           signal: abortControllerRef.current.signal,
         });
