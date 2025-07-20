@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get('city');
 
-    let ref = db.collection('outageReports');
+    let ref: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db.collection('outageReports');
     if (city) {
       ref = ref.where('city', '==', city);
     }
