@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMobileMenu } from "@/contexts/MobileMenuContext";
 
 export default function BackToTop() {
   const [isVisible, setIsVisible] = useState(false);
+  const { isMenuOpen, isMenuClosing } = useMobileMenu();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,6 +30,8 @@ export default function BackToTop() {
     });
   };
 
+  // Hide if menu is open or closing
+  const shouldShow = isVisible && !isMenuOpen && !isMenuClosing;
   return (
     <Button
       onClick={scrollToTop}
@@ -39,7 +43,7 @@ export default function BackToTop() {
         "hover:bg-primary/90 hover:border-primary/90",
         "shadow-lg hover:shadow-xl",
         "backdrop-blur-sm bg-opacity-95 rounded-full h-12 w-12", // Increased size
-        isVisible 
+        shouldShow 
           ? "opacity-100 translate-y-0 pointer-events-auto" 
           : "opacity-0 translate-y-8 pointer-events-none"
       )}

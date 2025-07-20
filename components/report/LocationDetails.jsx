@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { MapPin, Search, X, Loader2 } from "lucide-react";
+import { MapPin, X, Loader2 } from "lucide-react";
+import LocationButton from "@/components/ui/LocationButton";
+import SearchButton from "@/components/ui/SearchButton";
 import clsx from "clsx";
 
 function LocationDetails({
@@ -18,29 +20,43 @@ function LocationDetails({
   isSearching,
   searchResults,
   showResults,
-  searchError
+  searchError,
+  descriptionInputRef
 }) {
 
 
   // Track if search has been triggered
   const [hasSearched, setHasSearched] = useState(false);
+  // Track if autofill has occurred
+  const [isAutofilled, setIsAutofilled] = useState(false);
 
   // Track focus for info message
   const [isLocalityFocused, setIsLocalityFocused] = useState(false);
 
-  // Reset hasSearched if input is cleared
+  // Reset hasSearched and autofill if input is cleared
   useEffect(() => {
-    if (!location.locality) setHasSearched(false);
+    if (!location.locality) {
+      setHasSearched(false);
+      setIsAutofilled(false);
+    }
   }, [location.locality]);
 
   const handleSearchClick = () => {
     setHasSearched(true);
+    setIsAutofilled(false);
     onSearch();
   };
 
   const handleClearClick = () => {
     setHasSearched(false);
+    setIsAutofilled(false);
     onClearSearch();
+  };
+
+  // Wrap onPlaceSelect to set autofill state
+  const handlePlaceSelect = (result, ref) => {
+    setIsAutofilled(true);
+    if (onPlaceSelect) onPlaceSelect(result, ref);
   };
 
   return (
@@ -53,21 +69,12 @@ function LocationDetails({
             Locality <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <button
-              type="button"
+            <LocationButton
+              isLoading={isGettingLocation}
               onClick={onGetCurrentLocation}
-              disabled={isGettingLocation}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-full p-1 flex items-center justify-center text-blue-600 hover:bg-blue-50 focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 transition-all cursor-pointer disabled:opacity-50"
-              aria-label="Get current location"
-              title="Click to get your current location"
+              className="absolute left-2 top-1/2 -translate-y-1/2 !p-1 !w-5 !h-5"
               style={{ minWidth: 28, minHeight: 28 }}
-            >
-              {isGettingLocation ? (
-                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-              ) : (
-                <MapPin className="w-5 h-5 text-blue-600" />
-              )}
-            </button>
+            />
             <input
               key={localityInputKey}
               type="text"
@@ -87,33 +94,31 @@ function LocationDetails({
                 if (formErrors.locality && setFormErrors) setFormErrors((prev) => ({ ...prev, locality: null }));
               }}
               onBlur={() => setIsLocalityFocused(false)}
+              onKeyDown={e => {
+                if (
+                  e.key === "Enter" &&
+                  location.locality.trim() &&
+                  !isSearching &&
+                  location.locality.trim().length >= 3
+                ) {
+                  e.preventDefault();
+                  handleSearchClick();
+                }
+              }}
             />
-            {/* Search/X Icon Logic */}
-            {location.locality.trim() && !isSearching && (showResults || searchResults.length > 0) ? (
-              <button
-                type="button"
-                onClick={handleClearClick}
-                onTouchEnd={e => { e.preventDefault(); handleClearClick(); }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear locality"
-                style={{ zIndex: 10, cursor: 'pointer', background: 'transparent', border: 'none' }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            ) : location.locality.trim() && !isSearching && location.locality.trim().length >= 3 ? (
-              <button
-                type="button"
+            {/* SearchButton - shows X after autofill, search otherwise */}
+            {location.locality.trim() && !isSearching && location.locality.trim().length >= 3 && (
+              <SearchButton
+                isLoading={false}
+                showClear={isAutofilled}
                 onClick={handleSearchClick}
-                onTouchEnd={e => { e.preventDefault(); handleSearchClick(); }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Search locality"
+                onClear={handleClearClick}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                aria-label={isAutofilled ? "Clear locality" : "Search locality"}
                 tabIndex={0}
-                style={{ zIndex: 10, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSearchClick(); } }}
-              >
-                <Search className="w-4 h-4 pointer-events-none" />
-              </button>
-            ) : null}
+              />
+            )}
+            {/* Loader2 for loading state */}
             {location.locality.trim() && isSearching && (
               <button
                 type="button"
@@ -125,12 +130,10 @@ function LocationDetails({
                 <Loader2 className="w-4 h-4 animate-spin" />
               </button>
             )}
-            
             {/* Search Results Dropdown */}
             {showResults && searchResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
                 {searchResults.map((result, index) => {
-                  // For new API: placeId, structuredFormat.mainText.text, structuredFormat.secondaryText.text, text.text
                   const key = result.placeId || result.place_id || index;
                   const mainText = result.structuredFormat?.mainText?.text || result.text?.text || '';
                   const secondaryText = result.structuredFormat?.secondaryText?.text || '';
@@ -138,8 +141,8 @@ function LocationDetails({
                     <button
                       key={key}
                       type="button"
-                      onClick={() => onPlaceSelect(result)}
-                      onTouchEnd={e => { e.preventDefault(); onPlaceSelect(result); }}
+                    onClick={() => handlePlaceSelect(result, descriptionInputRef)}
+                    onTouchEnd={e => { e.preventDefault(); handlePlaceSelect(result, descriptionInputRef); }}
                       className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
                     >
                       <div className="flex items-center">

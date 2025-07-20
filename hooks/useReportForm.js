@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import useFormValidation from "@/hooks/useFormValidation";
 import useAutocompleteV2 from "@/hooks/useAutocompleteV2";
 
-export function useReportForm({ user, toast, router, isLoaded }) {
+export function useReportForm({ user, toast, router, isLoaded, descriptionValueRef }) {
   const [formData, setFormData] = useState({
     issue: { type: "electricity", description: "" },
     location: { locality: "", city: "", state: "", pinCode: "" },
@@ -96,7 +96,7 @@ export function useReportForm({ user, toast, router, isLoaded }) {
   }, [formErrors.locality, setFormErrors]);
 
   // Handle place selection from results with modern Places API
-  const handlePlaceSelect = useCallback(async (prediction) => {
+  const handlePlaceSelect = useCallback(async (prediction, descriptionInputRef) => {
     if (!fetchPlaceDetails) return;
 
     try {
@@ -200,6 +200,17 @@ export function useReportForm({ user, toast, router, isLoaded }) {
       
       setShowResults(false);
       setSearchResults([]);
+      // Focus next empty textarea (description) if empty and ref is provided
+      setTimeout(() => {
+        if (
+          descriptionInputRef &&
+          descriptionInputRef.current &&
+          descriptionValueRef &&
+          descriptionValueRef.current === ""
+        ) {
+          descriptionInputRef.current.focus();
+        }
+      }, 0);
     } catch (error) {
       console.error("Error selecting place:", error);
       toast({
@@ -211,7 +222,7 @@ export function useReportForm({ user, toast, router, isLoaded }) {
   }, [fetchPlaceDetails, toast]);
 
   // Get current location using geolocation API
-  const handleGetCurrentLocation = useCallback(() => {
+  const handleGetCurrentLocation = useCallback((descriptionInputRef) => {
     toast({ title: "Getting your location...", description: "Attempting to fetch your current location.", variant: "default" });
     if (!navigator.geolocation) {
       toast({
@@ -306,6 +317,17 @@ export function useReportForm({ user, toast, router, isLoaded }) {
                       pinCode: pinCode || prev.location.pinCode,
                     },
                   }));
+                  // Focus next empty textarea (description) if empty and ref is provided
+                  setTimeout(() => {
+                    if (
+                      descriptionInputRef &&
+                      descriptionInputRef.current &&
+                      descriptionValueRef &&
+                      descriptionValueRef.current === ""
+                    ) {
+                      descriptionInputRef.current.focus();
+                    }
+                  }, 0);
                   toast({
                     title: "Location found!",
                     description: "Your location has been automatically filled in.",
@@ -521,7 +543,9 @@ export function useReportForm({ user, toast, router, isLoaded }) {
     handleSubmitReport,
     handleSearch,
     handleClearSearch,
-    handlePlaceSelect,
-    handleGetCurrentLocation,
+    // Wrap handlePlaceSelect to accept descriptionInputRef from the component
+    handlePlaceSelect: (prediction, descriptionInputRef) => handlePlaceSelect(prediction, descriptionInputRef),
+    // Wrap handleGetCurrentLocation to accept descriptionInputRef from the component
+    handleGetCurrentLocation: (descriptionInputRef) => handleGetCurrentLocation(descriptionInputRef),
   };
 }

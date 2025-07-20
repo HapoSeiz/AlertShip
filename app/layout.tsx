@@ -4,6 +4,7 @@ import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import NProgressProvider from "@/components/nprogress-provider";
 import BackToTop from "@/components/back-to-top";
+import { MobileMenuProvider } from "@/contexts/MobileMenuContext";
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -29,9 +30,11 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          <NProgressProvider />
-          {children}
-          <BackToTop />
+          <MobileMenuProvider>
+            <NProgressProvider />
+            {children}
+            <BackToTop />
+          </MobileMenuProvider>
         </AuthProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@ import React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import clsx from "clsx";
 
-export default function DescriptionInput({ value, onChange, error }) {
+export default function DescriptionInput({ value, onChange, error, inputRef }) {
   return (
     <div>
       <label htmlFor="description" className="block text-sm font-medium text-[#1F2937] mb-2">
@@ -15,9 +15,10 @@ export default function DescriptionInput({ value, onChange, error }) {
         value={value}
         onChange={onChange}
         className={clsx(
-          "min-h-[120px] border-2 focus:border-[#4F46E5] focus:ring-0 outline-none",
+          "min-h-[120px] border-2 outline-none focus:border-[#4F46E5] focus:ring-0",
           error ? "border-red-500 bg-red-50" : "border-gray-300"
         )}
+        ref={inputRef}
       />
       {error && (
         <p className="text-red-500 text-sm mt-1 flex items-center">

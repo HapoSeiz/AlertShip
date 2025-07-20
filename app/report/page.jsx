@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
@@ -30,6 +30,10 @@ const libraries = ["places"];
 
 
 export default function ReportPage() {
+  // Ref for description textarea
+  const descriptionInputRef = useRef(null);
+  // Ref for latest description value
+  const descriptionValueRef = useRef("");
   console.log("Google Maps API Key:", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "Present" : "Missing");
   
   const { isLoaded } = useJsApiLoader({
@@ -70,7 +74,7 @@ export default function ReportPage() {
     handleClearSearch,
     handlePlaceSelect,
     handleGetCurrentLocation,
-  } = useReportForm({ user, toast, router, isLoaded });
+  } = useReportForm({ user, toast, router, isLoaded, descriptionValueRef });
 
   // Track if form was just submitted
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -149,16 +153,19 @@ export default function ReportPage() {
                   onSearch={handleSearch}
                   onClearSearch={handleClearSearch}
                   onPlaceSelect={handlePlaceSelect}
-                  onGetCurrentLocation={handleGetCurrentLocation}
+                  onGetCurrentLocation={() => handleGetCurrentLocation(descriptionInputRef)}
                   isGettingLocation={isGettingLocation}
+                  descriptionInputRef={descriptionInputRef}
                 />
                 <DescriptionInput
                   value={formData.issue.description}
                   onChange={e => {
                     setHasSubmitted(false); // Reset so focus doesn't jump while typing
                     handleDescriptionChange(e);
+                    descriptionValueRef.current = e.target.value;
                   }}
                   error={formErrors.description}
+                  inputRef={descriptionInputRef}
                 />
                 <PhotoUpload
                   photo={formData.user.photo}
