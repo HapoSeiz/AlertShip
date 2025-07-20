@@ -314,7 +314,16 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Buttons */}
-              {!isAuthenticated && (
+              {isAuthenticated ? (
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                  <Button
+                    onClick={() => router.push('/dashboard')}
+                    className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white px-8 py-3 text-lg font-semibold h-auto"
+                  >
+                    Go to Dashboard
+                  </Button>
+                </div>
+              ) : (
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Button
                     onClick={openSignUp}

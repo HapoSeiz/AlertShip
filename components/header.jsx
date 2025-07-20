@@ -296,7 +296,7 @@ export default function Header({ currentPage = "home" }) {
               ></div>
               
               {/* Navigation Links */}
-              <div className="space-y-1 mb-6">
+              <div className="space-y-1 mb-8">
                 <button
                   onClick={() => handleNavigation("home")}
                   className={`w-full flex items-center px-4 py-3 rounded-xl text-left transition-colors ${
@@ -359,7 +359,7 @@ export default function Header({ currentPage = "home" }) {
               </div>
 
               {/* Auth Actions */}
-              <div className="border-t border-gray-100 pt-6">
+              <div className="border-t border-gray-100 pt-1">
                 {isAuthenticated ? (
                   <div className="flex flex-row gap-3">
                     {currentPage !== "dashboard" && (
