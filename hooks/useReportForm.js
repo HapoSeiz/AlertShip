@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { getAuth } from "firebase/auth";
 import useFormValidation from "@/hooks/useFormValidation";
 import useAutocompleteV2 from "@/hooks/useAutocompleteV2";
 
-export function useReportForm({ user, toast, router, isLoaded }) {
+export function useReportForm({ user, toast, router, isLoaded, descriptionValueRef }) {
   const [formData, setFormData] = useState({
     issue: { type: "electricity", description: "" },
     location: { locality: "", city: "", state: "", pinCode: "" },
@@ -96,7 +97,7 @@ export function useReportForm({ user, toast, router, isLoaded }) {
   }, [formErrors.locality, setFormErrors]);
 
   // Handle place selection from results with modern Places API
-  const handlePlaceSelect = useCallback(async (prediction) => {
+  const handlePlaceSelect = useCallback(async (prediction, descriptionInputRef) => {
     if (!fetchPlaceDetails) return;
 
     try {
@@ -200,6 +201,17 @@ export function useReportForm({ user, toast, router, isLoaded }) {
       
       setShowResults(false);
       setSearchResults([]);
+      // Focus next empty textarea (description) if empty and ref is provided
+      setTimeout(() => {
+        if (
+          descriptionInputRef &&
+          descriptionInputRef.current &&
+          descriptionValueRef &&
+          descriptionValueRef.current === ""
+        ) {
+          descriptionInputRef.current.focus();
+        }
+      }, 0);
     } catch (error) {
       console.error("Error selecting place:", error);
       toast({
@@ -211,7 +223,7 @@ export function useReportForm({ user, toast, router, isLoaded }) {
   }, [fetchPlaceDetails, toast]);
 
   // Get current location using geolocation API
-  const handleGetCurrentLocation = useCallback(() => {
+  const handleGetCurrentLocation = useCallback((descriptionInputRef) => {
     toast({ title: "Getting your location...", description: "Attempting to fetch your current location.", variant: "default" });
     if (!navigator.geolocation) {
       toast({
@@ -306,6 +318,17 @@ export function useReportForm({ user, toast, router, isLoaded }) {
                       pinCode: pinCode || prev.location.pinCode,
                     },
                   }));
+                  // Focus next empty textarea (description) if empty and ref is provided
+                  setTimeout(() => {
+                    if (
+                      descriptionInputRef &&
+                      descriptionInputRef.current &&
+                      descriptionValueRef &&
+                      descriptionValueRef.current === ""
+                    ) {
+                      descriptionInputRef.current.focus();
+                    }
+                  }, 0);
                   toast({
                     title: "Location found!",
                     description: "Your location has been automatically filled in.",
@@ -416,7 +439,7 @@ export function useReportForm({ user, toast, router, isLoaded }) {
         uid: user?.uid,
         email: user?.email,
       };
-      
+
       // Always use browser coordinates if locationSource is 'browser'
       if (formData.locationSource === 'browser' && formData.browserLat && formData.browserLng) {
         console.log("Using browser coordinates for submission:", formData.browserLat, formData.browserLng);
@@ -427,23 +450,41 @@ export function useReportForm({ user, toast, router, isLoaded }) {
         payload.lat = formData.lat;
         payload.lng = formData.lng;
       }
-      
+
+
+      // Always get the current user from Firebase Auth instance
+      let idToken = null;
+      try {
+        const currentUser = getAuth().currentUser;
+        if (currentUser) {
+          idToken = await currentUser.getIdToken();
+          console.log("[Report Submit] Got ID token:", idToken);
+        } else {
+          console.warn("[Report Submit] No currentUser found in Firebase Auth");
+        }
+      } catch (err) {
+        console.error("[Report Submit] Error getting ID token:", err);
+      }
+
       console.log("Final payload coordinates:", payload.lat, payload.lng);
       console.log("Location source:", formData.locationSource);
       let res, result;
+      const headers = idToken ? { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` } : { "Content-Type": "application/json" };
       if (formData.user.photo) {
         const fd = new FormData();
         Object.entries(payload).forEach(([k, v]) => fd.append(k, v));
         fd.append("photo", formData.user.photo);
+        if (idToken) fd.append("idToken", idToken); // fallback for FormData
         res = await fetch("/api/outageReports", {
           method: "POST",
           body: fd,
           signal: abortControllerRef.current.signal,
+          headers: idToken ? { "Authorization": `Bearer ${idToken}` } : undefined,
         });
       } else {
         res = await fetch("/api/outageReports", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
           signal: abortControllerRef.current.signal,
         });
@@ -521,7 +562,9 @@ export function useReportForm({ user, toast, router, isLoaded }) {
     handleSubmitReport,
     handleSearch,
     handleClearSearch,
-    handlePlaceSelect,
-    handleGetCurrentLocation,
+    // Wrap handlePlaceSelect to accept descriptionInputRef from the component
+    handlePlaceSelect: (prediction, descriptionInputRef) => handlePlaceSelect(prediction, descriptionInputRef),
+    // Wrap handleGetCurrentLocation to accept descriptionInputRef from the component
+    handleGetCurrentLocation: (descriptionInputRef) => handleGetCurrentLocation(descriptionInputRef),
   };
 }

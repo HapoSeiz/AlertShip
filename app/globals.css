@@ -59,6 +59,14 @@
   }
 }
 
+/* Remove all focus outlines for textareas */
+@layer base {
+  textarea:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+}
+
 /* Custom NProgress bar to match scroll bar */
 #nprogress .bar {
   background: #4F46E5 !important;

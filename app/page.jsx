@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import { MapPin } from "lucide-react"
+import LocationButton from "@/components/ui/LocationButton"
+import SearchButton from "@/components/ui/SearchButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Nunito } from "next/font/google"
@@ -181,8 +183,8 @@ export default function LandingPage() {
               <div ref={locationAreaRef} className="bg-white rounded-2xl p-4 shadow-lg border max-w-md mx-auto lg:mx-0 mb-6">
                 <div className="flex items-center w-full gap-2" onFocus={() => setShowInfoMessage(true)} onClick={() => setShowInfoMessage(true)} tabIndex={-1}>
                   {/* Location Button */}
-                  <button
-                    type="button"
+                  <LocationButton
+                    isLoading={isGettingLocation}
                     onClick={async () => {
                       if (!navigator.geolocation) return;
                       setIsGettingLocation(true);
@@ -209,18 +211,7 @@ export default function LandingPage() {
                         setSelectedFromDropdown(false);
                       });
                     }}
-                    disabled={isGettingLocation}
-                    className="bg-white border-0 rounded-full p-1 flex items-center justify-center text-[#4F46E5] hover:bg-[#4F46E5]/10 focus:bg-[#4F46E5]/20 focus:ring-2 focus:ring-[#4F46E5] transition-all cursor-pointer disabled:opacity-50"
-                    aria-label="Get current location"
-                    title="Click to get your current location"
-                    style={{ minWidth: 40, minHeight: 40 }}
-                  >
-                    {isGettingLocation ? (
-                      <svg className="w-7 h-7 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="#4F46E5" strokeWidth="4"></circle><path className="opacity-75" fill="#4F46E5" d="M4 12a8 8 0 018-8v8z"></path></svg>
-                    ) : (
-                      <MapPin className="w-7 h-7 text-[#4F46E5]" />
-                    )}
-                  </button>
+                  />
                   {/* Input and dropdown in a relative container, only input and dropdown inside */}
                   <div className="relative flex-1 location-input-group">
                     <Input
@@ -248,19 +239,11 @@ export default function LandingPage() {
                     />
                     {/* Search Icon Button (inside input, right) */}
                     {(location || "").trim().length >= 3 && (
-                      <button
-                        type="button"
+                      <SearchButton
+                        isLoading={isSearching}
                         onClick={handleLocationSearch}
-                        className="absolute top-1/2 right-2 -translate-y-1/2 bg-transparent border-0 rounded-full p-0 flex items-center justify-center text-[#4F46E5] hover:bg-[#4F46E5]/10 focus:bg-[#4F46E5]/20 focus:ring-2 focus:ring-[#4F46E5] transition-all cursor-pointer"
-                        aria-label="Search location"
-                        style={{ minWidth: 28, minHeight: 28, zIndex: 50, pointerEvents: 'auto' }}
-                      >
-                        {isSearching ? (
-                          <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="#4F46E5" strokeWidth="4"></circle><path className="opacity-75" fill="#4F46E5" d="M4 12a8 8 0 018-8v8z"></path></svg>
-                        ) : (
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                        )}
-                      </button>
+                        className="absolute top-1/2 right-2 -translate-y-1/2"
+                      />
                     )}
                     {/* Dropdown for search results - refactored to be a direct child, absolute below input */}
                     {showDropdown && searchResults.length > 0 && (
@@ -331,7 +314,16 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Buttons */}
-              {!isAuthenticated && (
+              {isAuthenticated ? (
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                  <Button
+                    onClick={() => router.push('/dashboard')}
+                    className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white px-8 py-3 text-lg font-semibold h-auto"
+                  >
+                    Go to Dashboard
+                  </Button>
+                </div>
+              ) : (
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Button
                     onClick={openSignUp}
