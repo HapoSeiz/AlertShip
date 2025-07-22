@@ -1,6 +1,7 @@
 'use client';
 
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import { googleMapsLoaderConfig } from '@/lib/googleMapsLoaderConfig';
 import { useEffect, useState, useRef } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
@@ -10,19 +11,14 @@ const containerStyle = {
   height: '500px',
 };
 
-export default function OutageMap({ city, googleMapsApiKey }) {
+export default function OutageMap({ city }) {
   const [outages, setOutages] = useState([]);
   const [center, setCenter] = useState({ lat: 28.6139, lng: 77.209 }); // Default to Delhi
   const [selectedOutage, setSelectedOutage] = useState(null);
   const mapRef = useRef(null);
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
-  const { isLoaded, loadError } = useJsApiLoader(isMounted ? {
-    id: 'google-maps-script',
-    version: 'weekly',
-    googleMapsApiKey,
-    libraries: ["places"],
-  } : { googleMapsApiKey: undefined });
+  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderConfig);
 
   useEffect(() => {
     const fetchOutages = async () => {
@@ -65,6 +61,7 @@ export default function OutageMap({ city, googleMapsApiKey }) {
     fetchOutages();
   }, [city]);
 
+  if (!isMounted) return null;
   if (loadError) return <div>Map cannot be loaded right now.</div>;
   if (!isLoaded) return <div>Loading Map...</div>;
 
