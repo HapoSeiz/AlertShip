@@ -26,6 +26,7 @@ const nunito = Nunito({
 });
 
 
+export default function ReportPage() {
   console.log("Google Maps API Key:", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "Present" : "Missing");
   const { isLoaded } = useJsApiLoader({
     id: 'google-maps-script',
@@ -194,4 +195,5 @@ const nunito = Nunito({
       <AuthModals />
     </div>
   );
+}
 
