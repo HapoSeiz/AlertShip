@@ -26,21 +26,18 @@ const nunito = Nunito({
 });
 
 
-const libraries = ["places"];
-
-
 export default function ReportPage() {
   // Ref for description textarea
   const descriptionInputRef = useRef(null);
   // Ref for latest description value
   const descriptionValueRef = useRef("");
   console.log("Google Maps API Key:", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "Present" : "Missing");
-  
   const { isLoaded } = useJsApiLoader({
+    id: 'google-maps-script',
+    version: 'weekly',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-    libraries,
+    libraries: ["places"],
   });
-  
   console.log("Google Maps API loaded:", isLoaded);
   
   const router = useRouter();
@@ -206,3 +203,4 @@ export default function ReportPage() {
     </div>
   );
 }
+
