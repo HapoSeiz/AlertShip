@@ -1,7 +1,6 @@
 'use client';
 
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
-import { googleMapsLoaderConfig } from '@/lib/googleMapsLoaderConfig';
 import { useEffect, useState, useRef } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
@@ -18,7 +17,12 @@ export default function OutageMap({ city }) {
   const mapRef = useRef(null);
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => { setIsMounted(true); }, []);
-  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderConfig);
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-maps-script',
+    version: 'weekly',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: ["places"],
+  });
 
   useEffect(() => {
     const fetchOutages = async () => {

@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { googleMapsLoaderConfig } from "@/lib/googleMapsLoaderConfig";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
@@ -27,9 +26,13 @@ const nunito = Nunito({
 });
 
 
-export default function ReportPage() {
   console.log("Google Maps API Key:", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "Present" : "Missing");
-  const { isLoaded } = useJsApiLoader(googleMapsLoaderConfig);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-maps-script',
+    version: 'weekly',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: ["places"],
+  });
   console.log("Google Maps API loaded:", isLoaded);
   
   const router = useRouter();
@@ -191,4 +194,4 @@ export default function ReportPage() {
       <AuthModals />
     </div>
   );
-}
+
