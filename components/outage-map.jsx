@@ -15,10 +15,14 @@ export default function OutageMap({ city, googleMapsApiKey }) {
   const [center, setCenter] = useState({ lat: 28.6139, lng: 77.209 }); // Default to Delhi
   const [selectedOutage, setSelectedOutage] = useState(null);
   const mapRef = useRef(null);
-  const { isLoaded, loadError } = useJsApiLoader({
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
+  const { isLoaded, loadError } = useJsApiLoader(isMounted ? {
+    id: 'google-maps-script',
+    version: 'weekly',
     googleMapsApiKey,
     libraries: ["places"],
-  });
+  } : { googleMapsApiKey: undefined });
 
   useEffect(() => {
     const fetchOutages = async () => {
