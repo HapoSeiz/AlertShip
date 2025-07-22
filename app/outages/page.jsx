@@ -256,7 +256,7 @@ export default function OutagesPage() {
           {/* Map View */}
           {viewMode === "map" && (
             <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-              <OutageMap city={location} />
+              <OutageMap city={location} googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY} />
             </div>
           )}
 

@@ -10,13 +10,13 @@ const containerStyle = {
   height: '500px',
 };
 
-export default function OutageMap({ city }) {
+export default function OutageMap({ city, googleMapsApiKey }) {
   const [outages, setOutages] = useState([]);
   const [center, setCenter] = useState({ lat: 28.6139, lng: 77.209 }); // Default to Delhi
   const [selectedOutage, setSelectedOutage] = useState(null);
   const mapRef = useRef(null);
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey,
     libraries: ["places"],
   });
 
