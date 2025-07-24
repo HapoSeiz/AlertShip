@@ -21,7 +21,10 @@ AlertShip is a web platform that allows users to **report**, **view**, and **tra
 | Category       | Technology |
 |----------------|------------|
 | Frontend       | HTML, CSS, JavaScript, React, Figma (UI design) |
-| Map Integration| Mapbox |
+| Map Integration| Google Maps |
+| Autocomplete   | Google Places API |
+| Geocoding      | Google Geocoding API |
+| Rev. Geocoding | Photon API, Nominatim |
 | Backend        | Node.js, Next JS |
 | Database       | Firebase |
 | Hosting        | Vercel |

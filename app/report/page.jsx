@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react";
-import { useJsApiLoader } from "@react-google-maps/api";
+
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
@@ -26,7 +26,7 @@ const nunito = Nunito({
 });
 
 
-const libraries = ["places"];
+
 
 
 export default function ReportPage() {
@@ -36,12 +36,7 @@ export default function ReportPage() {
   const descriptionValueRef = useRef("");
   console.log("Google Maps API Key:", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "Present" : "Missing");
   
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-    libraries,
-  });
-  
-  console.log("Google Maps API loaded:", isLoaded);
+
   
   const router = useRouter();
   const { isAuthenticated, user, loading } = useAuth();
@@ -74,7 +69,7 @@ export default function ReportPage() {
     handleClearSearch,
     handlePlaceSelect,
     handleGetCurrentLocation,
-  } = useReportForm({ user, toast, router, isLoaded, descriptionValueRef });
+  } = useReportForm({ user, toast, router, descriptionValueRef });
 
   // Track if form was just submitted
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -91,6 +86,13 @@ export default function ReportPage() {
     }
   }, [formErrors, hasSubmitted]);
 
+  // Scroll to top when report is successfully submitted
+  useEffect(() => {
+    if (submitSuccess) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [submitSuccess]);
+
   // Route protection with proper loading state check
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -103,10 +105,7 @@ export default function ReportPage() {
   if (loading) return null;
   if (!isAuthenticated) return null;
 
-  // Show nothing while Google Maps API is loading
-  if (!isLoaded) {
-    return null;
-  }
+
 
   return (
     <div className={`min-h-screen bg-[#F9FAFB] ${nunito.className}`}>

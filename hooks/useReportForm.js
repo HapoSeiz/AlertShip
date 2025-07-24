@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { getAuth } from "firebase/auth";
 import useFormValidation from "@/hooks/useFormValidation";
-import useAutocompleteV2 from "@/hooks/useAutocompleteV2";
+
+import { useGooglePlaces } from "@/contexts/GooglePlacesContext";
+import { formatLocationAddress } from "@/lib/formatLocationAddress";
 
 export function useReportForm({ user, toast, router, isLoaded, descriptionValueRef }) {
   const [formData, setFormData] = useState({
@@ -23,16 +25,17 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   const [searchError, setSearchError] = useState("");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const localityInputRef = useRef(null);
-  const autocompleteSessionTokenRef = useRef(null);
   const { formErrors, setFormErrors, validate } = useFormValidation(formData);
   const abortControllerRef = useRef(null);
 
-  // Google Places Autocomplete V2 (modern SDK)
-  const { fetchPredictions, fetchPlaceDetails, isReady } = useAutocompleteV2({
-    isLoaded,
-    inputValue: formData.location.locality,
-    sessionTokenRef: autocompleteSessionTokenRef
-  });
+
+  // Use global Google Places context for all Places API utilities (autocomplete, place details, geocoding)
+  const {
+    isLoaded: placesLoaded,
+    fetchPredictions,
+    fetchPlaceDetails
+  } = useGooglePlaces();
+  const isReady = placesLoaded;
 
   // Handle search functionality with modern Places API
   const handleSearch = useCallback(async () => {
@@ -49,6 +52,7 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
       setShowResults(false);
       return;
     }
+
 
     if (!isReady) {
       console.log("Places API not ready yet");
@@ -99,86 +103,23 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   // Handle place selection from results with modern Places API
   const handlePlaceSelect = useCallback(async (prediction, descriptionInputRef) => {
     if (!fetchPlaceDetails) return;
-
     try {
-      // Support both new and legacy API: prefer placeId, fallback to place_id
-      const placeId = prediction.placeId || prediction.place_id;
-      const place = await fetchPlaceDetails(placeId);
-      // Support both address_components (legacy) and addressComponents (new API)
-      const addressComponents = place.address_components || place.addressComponents || [];
-      if (!addressComponents.length) return;
-
-      const getComponent = (type) => {
-        const comp = addressComponents.find((c) => {
-          const types = c.types || c.type || [];
-          return Array.isArray(types) ? types.includes(type) : types === type;
-        });
-        return comp ? (comp.long_name || comp.longName || comp.longText || "") : "";
-      };
-      
-      const getAllComponents = (type) => {
-        return addressComponents
-          ? addressComponents.filter((c) => {
-              const types = c.types || c.type || [];
-              return Array.isArray(types) ? types.includes(type) : types === type;
-            }).map((c) => c.long_name || c.longName || c.longText || "")
-          : [];
-      };
-      
-
-      // Priority: premise > neighborhood > others
-      const premise = getComponent("premise");
-      const neighborhood = getComponent("neighborhood");
-      const allSublocalities = [
-        ...getAllComponents("sublocality"),
-        ...getAllComponents("sublocality_level_1"),
-        ...getAllComponents("sublocality_level_2"),
-        ...getAllComponents("sublocality_level_3"),
-        ...getAllComponents("sublocality_level_4"),
-      ];
-      let sector = allSublocalities.find((part) => /^Sector\s*\d+/i.test(part));
-      let subCity = allSublocalities.find((part) => part && !/^Sector\s*\d+/i.test(part));
-      let route = getComponent("route");
-      let fallback = place.name || "";
-
-      let locality = "";
-      if (premise) {
-        locality = premise;
-      } else if (neighborhood) {
-        locality = neighborhood;
-      } else if (sector && subCity) {
-        locality = `${sector}, ${subCity}`;
-      } else if (sector) {
-        locality = sector;
-      } else if (subCity) {
-        locality = subCity;
-      } else if (route) {
-        locality = route;
-      } else {
-        locality = fallback;
-      }
-      
-      let city = getComponent("locality");
-      if (!city) city = getComponent("administrative_area_level_2");
-      if (!city) city = getComponent("administrative_area_level_1");
-      
-      const pinCode = getComponent("postal_code");
-      
+      const place = await fetchPlaceDetails(prediction);
+      const formatted = formatLocationAddress(place);
+      const components = formatted.components || {};
       // Get coordinates from the place details
       const lat = place.geometry?.location?.lat ? place.geometry.location.lat() : null;
       const lng = place.geometry?.location?.lng ? place.geometry.location.lng() : null;
-      
       setFormData((prev) => {
-        // Only update lat/lng if not in browser geolocation mode
         if (prev.locationSource === 'browser') {
           return {
             ...prev,
             location: {
               ...prev.location,
-              locality,
-              city: city || prev.location.city,
-              state: getComponent("administrative_area_level_1") || prev.location.state,
-              pinCode: pinCode || "",
+              locality: components.premise || components.neighborhood || components.sublocality || components.route || formatted.address || prev.location.locality,
+              city: components.city || prev.location.city,
+              state: components.state || prev.location.state,
+              pinCode: components.pinCode || "",
             },
             // lat/lng remain as browser values
           };
@@ -187,10 +128,10 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
             ...prev,
             location: {
               ...prev.location,
-              locality,
-              city: city || prev.location.city,
-              state: getComponent("administrative_area_level_1") || prev.location.state,
-              pinCode: pinCode || "",
+              locality: components.premise || components.neighborhood || components.sublocality || components.route || formatted.address || prev.location.locality,
+              city: components.city || prev.location.city,
+              state: components.state || prev.location.state,
+              pinCode: components.pinCode || "",
             },
             lat: lat || prev.lat,
             lng: lng || prev.lng,
@@ -198,10 +139,8 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
           };
         }
       });
-      
       setShowResults(false);
       setSearchResults([]);
-      // Focus next empty textarea (description) if empty and ref is provided
       setTimeout(() => {
         if (
           descriptionInputRef &&
@@ -220,7 +159,7 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
         variant: "destructive",
       });
     }
-  }, [fetchPlaceDetails, toast]);
+  }, [fetchPlaceDetails, toast, descriptionValueRef]);
 
   // Get current location using geolocation API
   const handleGetCurrentLocation = useCallback((descriptionInputRef) => {

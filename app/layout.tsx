@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { GooglePlacesProvider } from '@/contexts/GooglePlacesContext';
 import NProgressProvider from "@/components/nprogress-provider";
 import BackToTop from "@/components/back-to-top";
 import { MobileMenuProvider } from "@/contexts/MobileMenuContext";
@@ -30,11 +31,13 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          <MobileMenuProvider>
-            <NProgressProvider />
-            {children}
-            <BackToTop />
-          </MobileMenuProvider>
+          <GooglePlacesProvider>
+            <MobileMenuProvider>
+              <NProgressProvider />
+              {children}
+              <BackToTop />
+            </MobileMenuProvider>
+          </GooglePlacesProvider>
         </AuthProvider>
       </body>
     </html>
