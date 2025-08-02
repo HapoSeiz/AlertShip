@@ -7,6 +7,9 @@
 /.next/
 /out/
 
+# .vscode folder
+.vscode/
+
 # production
 /build
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { getAuth } from "firebase/auth";
 import useFormValidation from "@/hooks/useFormValidation";
-import useAutocompleteV2 from "@/hooks/useAutocompleteV2";
+import { useGooglePlaces } from "@/hooks/useGooglePlaces";
 
 export function useReportForm({ user, toast, router, isLoaded, descriptionValueRef }) {
   const [formData, setFormData] = useState({
@@ -17,67 +17,63 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localityInputKey, setLocalityInputKey] = useState(Date.now());
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [showResults, setShowResults] = useState(false);
-  const [searchError, setSearchError] = useState("");
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  
   const localityInputRef = useRef(null);
-  const autocompleteSessionTokenRef = useRef(null);
   const { formErrors, setFormErrors, validate } = useFormValidation(formData);
   const abortControllerRef = useRef(null);
 
-  // Google Places Autocomplete V2 (modern SDK)
-  const { fetchPredictions, fetchPlaceDetails, isReady } = useAutocompleteV2({
-    isLoaded,
-    inputValue: formData.location.locality,
-    sessionTokenRef: autocompleteSessionTokenRef
+  // Use the consolidated Google Places hook
+  const googlePlaces = useGooglePlaces({
+    toast,
+    onLocationUpdate: (locationData) => {
+      // Robust fallback for locality
+      const bestLocality =
+        locationData.locality ||
+        locationData.premise ||
+        locationData.neighborhood ||
+        locationData.sublocality ||
+        locationData.route ||
+        locationData.city ||
+        locationData.address ||
+        "";
+      setFormData((prev) => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          locality: bestLocality,
+          city: locationData.city || prev.location.city,
+          state: locationData.state || prev.location.state,
+          pinCode: locationData.pinCode || prev.location.pinCode,
+        },
+        lat: locationData.lat || prev.lat,
+        lng: locationData.lng || prev.lng,
+        locationSource: locationData.locationSource || prev.locationSource,
+        ...(locationData.locationSource === 'browser' && {
+          browserLat: locationData.lat,
+          browserLng: locationData.lng
+        })
+      }));
+    },
+    onFocusNext: () => {
+      // Focus description input after location selection
+      setTimeout(() => {
+        if (
+          descriptionValueRef &&
+          descriptionValueRef.current === ""
+        ) {
+          const descInput = document.querySelector('textarea[name="description"]');
+          if (descInput) descInput.focus();
+        }
+      }, 0);
+    }
   });
 
-  // Handle search functionality with modern Places API
+  // Wrapper functions that integrate with the useGooglePlaces hook
   const handleSearch = useCallback(async () => {
-    console.log("handleSearch called!");
-    console.log("formData.location.locality:", formData.location.locality);
-    console.log("fetchPredictions:", fetchPredictions);
-    console.log("isReady:", isReady);
-    
     const query = formData.location.locality.trim();
-    
-    if (query.length < 3) {
-      console.log("Query too short:", query);
-      setSearchError("Please enter at least 3 characters to search");
-      setShowResults(false);
-      return;
-    }
+    await googlePlaces.handleSearch(query);
+  }, [formData.location.locality, googlePlaces]);
 
-    if (!isReady) {
-      console.log("Places API not ready yet");
-      setSearchError("Places API is not ready. Please try again.");
-      setShowResults(false);
-      return;
-    }
-
-    setSearchError("");
-    setIsSearching(true);
-    setShowResults(false);
-
-    try {
-      console.log("Calling fetchPredictions with query:", query);
-      const predictions = await fetchPredictions(query);
-      console.log("Received predictions:", predictions);
-      setSearchResults(predictions);
-      setShowResults(true);
-    } catch (error) {
-      console.error("Search error:", error);
-      setSearchError("Failed to search places. Please try again.");
-      setSearchResults([]);
-      setShowResults(false);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [formData.location.locality, fetchPredictions, isReady]);
-
-  // Handle clearing search
   const handleClearSearch = useCallback(() => {
     setFormData((prev) => ({
       ...prev,
@@ -88,312 +84,105 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
       browserLat: null,
       browserLng: null,
     }));
-    setSearchResults([]);
-    setShowResults(false);
-    setSearchError("");
+    googlePlaces.handleClearSearch();
     if (formErrors.locality) {
       setFormErrors((prev) => ({ ...prev, locality: null }));
     }
-  }, [formErrors.locality, setFormErrors]);
+  }, [formErrors.locality, setFormErrors, googlePlaces]);
 
-  // Handle place selection from results with modern Places API
   const handlePlaceSelect = useCallback(async (prediction, descriptionInputRef) => {
-    if (!fetchPlaceDetails) return;
-
-    try {
-      // Support both new and legacy API: prefer placeId, fallback to place_id
-      const placeId = prediction.placeId || prediction.place_id;
-      const place = await fetchPlaceDetails(placeId);
-      // Support both address_components (legacy) and addressComponents (new API)
-      const addressComponents = place.address_components || place.addressComponents || [];
-      if (!addressComponents.length) return;
-
-      const getComponent = (type) => {
-        const comp = addressComponents.find((c) => {
-          const types = c.types || c.type || [];
-          return Array.isArray(types) ? types.includes(type) : types === type;
+    // Let the hook handle the place selection and location formatting
+    await googlePlaces.handlePlaceSelect(prediction, {
+      onLocationUpdate: (locationData) => {
+        // Robust fallback for locality
+        const bestLocality =
+          locationData.locality ||
+          locationData.premise ||
+          locationData.neighborhood ||
+          locationData.sublocality ||
+          locationData.route ||
+          locationData.city ||
+          locationData.address ||
+          "";
+        setFormData((prev) => {
+          if (prev.locationSource === 'browser') {
+            // If we already have browser location, preserve lat/lng
+            return {
+              ...prev,
+              location: {
+                ...prev.location,
+                locality: bestLocality,
+                city: locationData.city || prev.location.city,
+                state: locationData.state || prev.location.state,
+                pinCode: locationData.pinCode || "",
+              },
+              // Keep browser coordinates
+            };
+          } else {
+            // Use search coordinates
+            return {
+              ...prev,
+              location: {
+                ...prev.location,
+                locality: bestLocality,
+                city: locationData.city || prev.location.city,
+                state: locationData.state || prev.location.state,
+                pinCode: locationData.pinCode || "",
+              },
+              lat: locationData.lat || prev.lat,
+              lng: locationData.lng || prev.lng,
+              locationSource: 'search',
+            };
+          }
         });
-        return comp ? (comp.long_name || comp.longName || comp.longText || "") : "";
-      };
-      
-      const getAllComponents = (type) => {
-        return addressComponents
-          ? addressComponents.filter((c) => {
-              const types = c.types || c.type || [];
-              return Array.isArray(types) ? types.includes(type) : types === type;
-            }).map((c) => c.long_name || c.longName || c.longText || "")
-          : [];
-      };
-      
-
-      // Priority: premise > neighborhood > others
-      const premise = getComponent("premise");
-      const neighborhood = getComponent("neighborhood");
-      const allSublocalities = [
-        ...getAllComponents("sublocality"),
-        ...getAllComponents("sublocality_level_1"),
-        ...getAllComponents("sublocality_level_2"),
-        ...getAllComponents("sublocality_level_3"),
-        ...getAllComponents("sublocality_level_4"),
-      ];
-      let sector = allSublocalities.find((part) => /^Sector\s*\d+/i.test(part));
-      let subCity = allSublocalities.find((part) => part && !/^Sector\s*\d+/i.test(part));
-      let route = getComponent("route");
-      let fallback = place.name || "";
-
-      let locality = "";
-      if (premise) {
-        locality = premise;
-      } else if (neighborhood) {
-        locality = neighborhood;
-      } else if (sector && subCity) {
-        locality = `${sector}, ${subCity}`;
-      } else if (sector) {
-        locality = sector;
-      } else if (subCity) {
-        locality = subCity;
-      } else if (route) {
-        locality = route;
-      } else {
-        locality = fallback;
+        // Focus description input if provided and empty
+        setTimeout(() => {
+          if (
+            descriptionInputRef &&
+            descriptionInputRef.current &&
+            descriptionValueRef &&
+            descriptionValueRef.current === ""
+          ) {
+            descriptionInputRef.current.focus();
+          }
+        }, 0);
       }
-      
-      let city = getComponent("locality");
-      if (!city) city = getComponent("administrative_area_level_2");
-      if (!city) city = getComponent("administrative_area_level_1");
-      
-      const pinCode = getComponent("postal_code");
-      
-      // Get coordinates from the place details
-      const lat = place.geometry?.location?.lat ? place.geometry.location.lat() : null;
-      const lng = place.geometry?.location?.lng ? place.geometry.location.lng() : null;
-      
-      setFormData((prev) => {
-        // Only update lat/lng if not in browser geolocation mode
-        if (prev.locationSource === 'browser') {
-          return {
-            ...prev,
-            location: {
-              ...prev.location,
-              locality,
-              city: city || prev.location.city,
-              state: getComponent("administrative_area_level_1") || prev.location.state,
-              pinCode: pinCode || "",
-            },
-            // lat/lng remain as browser values
-          };
-        } else {
-          return {
-            ...prev,
-            location: {
-              ...prev.location,
-              locality,
-              city: city || prev.location.city,
-              state: getComponent("administrative_area_level_1") || prev.location.state,
-              pinCode: pinCode || "",
-            },
-            lat: lat || prev.lat,
-            lng: lng || prev.lng,
-            locationSource: 'search',
-          };
-        }
-      });
-      
-      setShowResults(false);
-      setSearchResults([]);
-      // Focus next empty textarea (description) if empty and ref is provided
-      setTimeout(() => {
-        if (
-          descriptionInputRef &&
-          descriptionInputRef.current &&
-          descriptionValueRef &&
-          descriptionValueRef.current === ""
-        ) {
-          descriptionInputRef.current.focus();
-        }
-      }, 0);
-    } catch (error) {
-      console.error("Error selecting place:", error);
-      toast({
-        title: "Error",
-        description: "Failed to get place details. Please try again.",
-        variant: "destructive",
-      });
-    }
-  }, [fetchPlaceDetails, toast]);
+    });
+  }, [googlePlaces, descriptionValueRef]);
 
-  // Get current location using geolocation API
   const handleGetCurrentLocation = useCallback((descriptionInputRef) => {
-    toast({ title: "Getting your location...", description: "Attempting to fetch your current location.", variant: "default" });
-    if (!navigator.geolocation) {
-      toast({
-        title: "Geolocation not supported",
-        description: "Your browser doesn't support geolocation.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsGettingLocation(true);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
+    googlePlaces.handleGetCurrentLocation({
+      onLocationUpdate: (locationData) => {
+        const { location, lat, lng } = locationData;
+        
         // Always preserve browser coordinates
         setFormData((prev) => ({
           ...prev,
-          lat: latitude,
-          lng: longitude,
-          browserLat: latitude,
-          browserLng: longitude,
+          location: {
+            ...prev.location,
+            ...location
+          },
+          lat: lat,
+          lng: lng,
+          browserLat: lat,
+          browserLng: lng,
           locationSource: 'browser',
         }));
 
-        // Use reverse geocoding to get address components, but DO NOT overwrite lat/lng
-        if (window.google && window.google.maps && window.google.maps.Geocoder) {
-          try {
-            const geocoder = new window.google.maps.Geocoder();
-            geocoder.geocode(
-              { location: { lat: latitude, lng: longitude } },
-              (results, status) => {
-                setIsGettingLocation(false);
-                if (status === "OK" && results && results.length > 0) {
-                  const place = results[0];
-                  const getComponent = (type) => {
-                    const comp = place.address_components.find((c) => c.types.includes(type));
-                    return comp ? comp.long_name : "";
-                  };
-                  const getAllComponents = (type) => {
-                    return place.address_components
-                      ? place.address_components.filter((c) => c.types.includes(type)).map((c) => c.long_name)
-                      : [];
-                  };
-                  // Robust priority: premise > street_number+route > neighborhood > sector+subCity > sector > subCity > route > sublocality > neighborhood
-                  // If multiple premises, pick the closest (first in address_components)
-                  const allPremises = getAllComponents("premise");
-                  const premise = allPremises.length > 0 ? allPremises[0] : "";
-                  const streetNumber = getComponent("street_number");
-                  const route = getComponent("route");
-                  const neighborhood = getComponent("neighborhood");
-                  const allSublocalities = [
-                    ...getAllComponents("sublocality"),
-                    ...getAllComponents("sublocality_level_1"),
-                    ...getAllComponents("sublocality_level_2"),
-                    ...getAllComponents("sublocality_level_3"),
-                    ...getAllComponents("sublocality_level_4"),
-                  ];
-                  let sector = allSublocalities.find((part) => /^Sector\s*\d+/i.test(part));
-                  let subCity = allSublocalities.find((part) => part && !/^Sector\s*\d+/i.test(part));
-                  let locality = "";
-                  if (premise) {
-                    locality = premise;
-                  } else if (streetNumber && route) {
-                    locality = `${streetNumber} ${route}`;
-                  } else if (neighborhood) {
-                    locality = neighborhood;
-                  } else if (sector && subCity) {
-                    locality = `${sector}, ${subCity}`;
-                  } else if (sector) {
-                    locality = sector;
-                  } else if (subCity) {
-                    locality = subCity;
-                  } else if (route) {
-                    locality = route;
-                  } else {
-                    locality = getComponent("sublocality") || getComponent("neighborhood") || "";
-                  }
-                  let city = getComponent("locality");
-                  if (!city) city = getComponent("administrative_area_level_2");
-                  if (!city) city = getComponent("administrative_area_level_1");
-                  const pinCode = getComponent("postal_code");
-                  const state = getComponent("administrative_area_level_1");
-                  setFormData((prev) => ({
-                    ...prev,
-                    // DO NOT overwrite lat/lng here
-                    location: {
-                      ...prev.location,
-                      locality: locality || prev.location.locality,
-                      city: city || prev.location.city,
-                      state: state || prev.location.state,
-                      pinCode: pinCode || prev.location.pinCode,
-                    },
-                  }));
-                  // Focus next empty textarea (description) if empty and ref is provided
-                  setTimeout(() => {
-                    if (
-                      descriptionInputRef &&
-                      descriptionInputRef.current &&
-                      descriptionValueRef &&
-                      descriptionValueRef.current === ""
-                    ) {
-                      descriptionInputRef.current.focus();
-                    }
-                  }, 0);
-                  toast({
-                    title: "Location found!",
-                    description: "Your location has been automatically filled in.",
-                    variant: "success",
-                  });
-                } else {
-                  console.error("Geocoder failed or returned no results", status, results);
-                  toast({
-                    title: "Address not found",
-                    description: `Could not get address details for your location. Status: ${status}`,
-                    variant: "destructive",
-                  });
-                }
-              }
-            );
-          } catch (err) {
-            setIsGettingLocation(false);
-            console.error("Error using Google Maps Geocoder", err);
-            toast({
-              title: "Geocoder error",
-              description: "An error occurred while using Google Maps Geocoder.",
-              variant: "destructive",
-            });
+        // Focus description input if provided and empty  
+        setTimeout(() => {
+          if (
+            descriptionInputRef &&
+            descriptionInputRef.current &&
+            descriptionValueRef &&
+            descriptionValueRef.current === ""
+          ) {
+            descriptionInputRef.current.focus();
           }
-        } else {
-          setIsGettingLocation(false);
-          console.error("Google Maps API or Geocoder not loaded", window.google);
-          toast({
-            title: "Location saved",
-            description: "Your coordinates have been saved, but Google Maps is not loaded for address lookup.",
-            variant: "default",
-          });
-        }
-      },
-      (error) => {
-        setIsGettingLocation(false);
-        let errorMessage = "Could not get your location.";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "Location access denied. Please enable location permissions.";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "Location information is unavailable.";
-            break;
-          case error.TIMEOUT:
-            errorMessage = "Location request timed out.";
-            break;
-        }
-        console.error("Geolocation error", error);
-        toast({
-          title: "Location error",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes
+        }, 0);
       }
-    );
-  }, [toast]);
-
-  // Google Places Autocomplete (remove old implementation)
-  // useAutocomplete({...}) - removed
+    });
+  }, [googlePlaces, descriptionValueRef]);
 
   // Remove photo
   const handleRemovePhoto = useCallback(() => {
@@ -550,11 +339,12 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
     localityInputKey,
     setLocalityInputKey,
     localityInputRef,
-    isSearching,
-    searchResults,
-    showResults,
-    searchError,
-    isGettingLocation,
+    // Use the hook's state instead of local state
+    isSearching: googlePlaces.isSearching,
+    searchResults: googlePlaces.searchResults,
+    showResults: googlePlaces.showResults,
+    searchError: googlePlaces.searchError,
+    isGettingLocation: googlePlaces.isGettingLocation,
     handleTypeChange,
     handleLocationChange,
     handleDescriptionChange,

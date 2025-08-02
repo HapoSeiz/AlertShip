@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { MapPin, X, Loader2 } from "lucide-react";
+import LocationDropdown from "@/components/LocationDropdown";
 import LocationButton from "@/components/ui/LocationButton";
 import SearchButton from "@/components/ui/SearchButton";
 import clsx from "clsx";
@@ -99,7 +100,7 @@ function LocationDetails({
                   e.key === "Enter" &&
                   location.locality.trim() &&
                   !isSearching &&
-                  location.locality.trim().length >= 3
+                  location.locality.trim().length >= 5
                 ) {
                   e.preventDefault();
                   handleSearchClick();
@@ -107,7 +108,7 @@ function LocationDetails({
               }}
             />
             {/* SearchButton - shows X after autofill, search otherwise */}
-            {location.locality.trim() && !isSearching && location.locality.trim().length >= 3 && (
+            {location.locality.trim() && !isSearching && location.locality.trim().length >= 5 && (
               <SearchButton
                 isLoading={false}
                 showClear={isAutofilled}
@@ -130,45 +131,19 @@ function LocationDetails({
                 <Loader2 className="w-4 h-4 animate-spin" />
               </button>
             )}
-            {/* Search Results Dropdown */}
-            {showResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                {searchResults.map((result, index) => {
-                  const key = result.placeId || result.place_id || index;
-                  const mainText = result.structuredFormat?.mainText?.text || result.text?.text || '';
-                  const secondaryText = result.structuredFormat?.secondaryText?.text || '';
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                    onClick={() => handlePlaceSelect(result, descriptionInputRef)}
-                    onTouchEnd={e => { e.preventDefault(); handlePlaceSelect(result, descriptionInputRef); }}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                    >
-                      <div className="flex items-center">
-                        <MapPin className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {mainText}
-                          </p>
-                          {secondaryText && (
-                            <p className="text-xs text-gray-500 truncate">
-                              {secondaryText}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {/* Reusable LocationDropdown */}
+            <LocationDropdown
+              results={searchResults}
+              show={showResults}
+              onSelect={handlePlaceSelect}
+              inputRef={descriptionInputRef}
+            />
           </div>
           
           {/* Info or Error Messages */}
           {isLocalityFocused && !formErrors.locality && !searchError && (
             <p className="text-blue-600 text-sm mt-1">
-              Click on the location icon for automatic fetching or enter at least 3 characters to search.
+              Click on the location icon for automatic fetching or enter at least 5 characters to search.
             </p>
           )}
           {(formErrors.locality || searchError) && (

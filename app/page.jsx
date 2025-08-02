@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useRef } from "react"
 import { MapPin } from "lucide-react"
+import LocationDropdown from "@/components/LocationDropdown";
 import LocationButton from "@/components/ui/LocationButton"
 import SearchButton from "@/components/ui/SearchButton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Nunito } from "next/font/google"
-import LatestUpdates from "@/components/latest-updates"
-import HowItWorks from "@/components/how-it-works"
-import Benefits from "@/components/benefits"
+import LatestUpdates from "@/components/homePage/latest-updates"
+import HowItWorks from "@/components/homePage/how-it-works"
+import Benefits from "@/components/homePage/benefits"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -33,6 +34,7 @@ export default function LandingPage() {
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
+  const locationInputRef = useRef(null);
   const dropdownRef = useRef(null)
   const [selectedFromDropdown, setSelectedFromDropdown] = useState(false)
   // All Google Places/Maps API code removed
@@ -43,7 +45,7 @@ export default function LandingPage() {
   
   // Location search using Photon API (via Next.js proxy)
   const handleLocationSearch = async () => {
-    if (location.trim().length < 3) {
+    if (location.trim().length < 5) {
       setIsSearching(false);
       return;
     }
@@ -73,7 +75,7 @@ export default function LandingPage() {
   
   // Clear search results and dropdown if input is cleared or too short
   useEffect(() => {
-    if (location.trim().length < 3) {
+    if (location.trim().length < 5) {
       setSearchResults([]);
       setShowDropdown(false);
     }
@@ -231,66 +233,43 @@ export default function LandingPage() {
                         if (e.key === "Enter") {
                           if (selectedFromDropdown) {
                             handleLocationSubmit();
-                          } else if ((location || "").trim().length >= 3) {
+                          } else if ((location || "").trim().length >= 5) {
                             handleLocationSearch();
                           }
                         }
                       }}
                     />
                     {/* Search Icon Button (inside input, right) */}
-                    {(location || "").trim().length >= 3 && (
+                    {(location || "").trim().length >= 5 && (
                       <SearchButton
                         isLoading={isSearching}
                         onClick={handleLocationSearch}
                         className="absolute top-1/2 right-2 -translate-y-1/2"
                       />
                     )}
-                    {/* Dropdown for search results - refactored to be a direct child, absolute below input */}
-                    {showDropdown && searchResults.length > 0 && (
-                      <div
-                        ref={dropdownRef}
-                        className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 autocomplete-dropdown"
-                        style={{
-                          top: '100%',
-                          maxHeight: '50vh',
-                          overflowY: 'auto',
-                          WebkitOverflowScrolling: 'touch',
-                        }}
-                      >
-                        {searchResults.map((result, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => {
-                              const city = result.properties.city || result.properties.name || "";
-                              setLocation(city);
-                              setSelectedFromDropdown(true);
-                              setShowDropdown(false);
-                            }}
-                            onTouchEnd={e => {
-                              e.preventDefault();
-                              const city = result.properties.city || result.properties.name || "";
-                              setLocation(city);
-                              setSelectedFromDropdown(true);
-                              setShowDropdown(false);
-                            }}
-                            className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                            style={{ background: 'transparent', border: 'none', outline: 'none' }}
-                          >
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
-                                  {result.properties.name}
-                                  {result.properties.city && result.properties.city !== result.properties.name && `, ${result.properties.city}`}
-                                  {result.properties.country && `, ${result.properties.country}`}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+  {/* Reusable LocationDropdown for Photon API */}
+  <LocationDropdown
+    results={searchResults.map((result, idx) => ({
+      // Map Photon fields to expected fields for dropdown
+      key: result.properties.osm_id || idx,
+      mainText: result.properties.name,
+      secondaryText: [
+        result.properties.city,
+        result.properties.state,
+        result.properties.country
+      ].filter(Boolean).join(", "),
+      raw: result // keep original for onSelect
+    }))}
+    show={showDropdown && searchResults.length > 0}
+    onSelect={(item) => {
+      // item.raw is the original photon result
+      const city = item.raw.properties.city || item.raw.properties.name || "";
+      setLocation(city);
+      setSelectedFromDropdown(true);
+      setShowDropdown(false);
+    }}
+    inputRef={locationInputRef}
+  />
                   </div>
                   {/* Check Button (always visible, outside input group) */}
                   <Button
@@ -308,7 +287,7 @@ export default function LandingPage() {
                 {/* Info Message */}
                 {showInfoMessage && (
                   <p className="text-[#4F46E5] text-sm mt-2 text-center">
-                    Click the location icon for automatic fetching or enter at least 3 characters to search.
+                    Click the location icon for automatic fetching or enter at least 5 characters to search.
                   </p>
                 )}
               </div>
