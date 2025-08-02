@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Loader2 } from "lucide-react";
@@ -7,8 +7,8 @@ import LocationButton from "@/components/ui/LocationButton";
 import SearchButton from "@/components/ui/SearchButton";
 import clsx from "clsx";
 import { useDashboardContext } from "@/contexts/DashboardContext";
-import { addSavedLocation } from "@/firebase/firestoreHelpers";
-import { useGooglePlaces } from "@/contexts/GooglePlacesContext";
+import { addSavedLocation, updateSavedLocations } from "@/firebase/firestoreHelpers";
+import { useGooglePlaces } from "@/hooks/useGooglePlaces";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AddLocationModal() {
@@ -20,202 +20,72 @@ export default function AddLocationModal() {
     newLocation,
     setNewLocation,
     setLocationSuccessMessage,
-    setHasSearched,
-    setIsAutofilled,
-    setSearchResults,
-    setShowResults,
-    setSearchError,
     user,
     savedLocations,
     setSavedLocations,
-    updateSavedLocations,
     locationSuccessMessage,
   } = useDashboardContext();
 
   const { toast } = useToast();
 
-  const [searchResults, setSearchResultsLocal] = React.useState([]);
-  const [showResults, setShowResultsLocal] = React.useState(false);
-  const [isSearching, setIsSearching] = React.useState(false);
-  const [isGettingLocation, setIsGettingLocation] = React.useState(false);
-  const [searchError, setSearchErrorLocal] = React.useState("");
+  // Local state for form validation errors
+  const [formError, setFormError] = useState("");
+
+  // Use the consolidated Google Places hook
+  const {
+    isReady,
+    isSearching,
+    searchResults,
+    showResults,
+    searchError,
+    hasSearched,
+    isAutofilled,
+    isGettingLocation,
+    handleSearch,
+    handlePlaceSelect,
+    handleGetCurrentLocation,
+    handleClearSearch,
+  } = useGooglePlaces({
+    toast,
+    onLocationUpdate: (locationData) => {
+      setNewLocation(prev => ({
+        ...prev,
+        ...locationData
+      }));
+    }
+  });
+
   const [isLocationFocused, setIsLocationFocused] = React.useState(false);
-  const [hasSearched, setHasSearchedLocal] = React.useState(false);
-  const [isAutofilled, setIsAutofilledLocal] = React.useState(false);
+  const [hasUserTyped, setHasUserTyped] = React.useState(false);
   const locationInputRef = useRef(null);
-  const { isLoaded, fetchPredictions, fetchPlaceDetails, formatLocationAddress } = useGooglePlaces();
-  const isReady = isLoaded;
 
   React.useEffect(() => {
     if (!newLocation.address) {
-      setHasSearchedLocal(false);
-      setIsAutofilledLocal(false);
-      setSearchResultsLocal([]);
-      setShowResultsLocal(false);
-      setSearchErrorLocal("");
+      handleClearSearch();
+      setHasUserTyped(false);
     }
-  }, [newLocation.address]);
+  }, [newLocation.address, handleClearSearch]);
 
-  const handleSearch = async () => {
-    const query = newLocation.address.trim();
-    if (query.length < 3) {
-      setSearchErrorLocal("Please enter at least 3 characters to search");
-      setShowResultsLocal(false);
-      return;
-    }
-    if (!isReady) {
-      setSearchErrorLocal("Places API is not ready. Please try again.");
-      setShowResultsLocal(false);
-      return;
-    }
-    setSearchErrorLocal("");
-    setIsSearching(true);
-    setShowResultsLocal(false);
-    setHasSearchedLocal(true);
-    try {
-      const predictions = await fetchPredictions(query);
-      setSearchResultsLocal(predictions);
-      setShowResultsLocal(true);
-    } catch (error) {
-      setSearchErrorLocal("Failed to search places. Please try again.");
-      setSearchResultsLocal([]);
-      setShowResultsLocal(false);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  // Reset hasUserTyped when modal opens/closes or when switching between add/edit
+  React.useEffect(() => {
+    setHasUserTyped(false);
+  }, [editingLocationId, showAddLocationModal]);
 
-  const handlePlaceSelect = async (prediction) => {
-    setIsAutofilledLocal(true);
-    setShowResultsLocal(false);
-    try {
-      const placeDetails = await fetchPlaceDetails(prediction);
-      if (!placeDetails) throw new Error("No place details received");
-      let lat = null, lng = null;
-      if (placeDetails.geometry?.location) {
-        lat = typeof placeDetails.geometry.location.lat === 'function'
-          ? placeDetails.geometry.location.lat()
-          : placeDetails.geometry.location.lat;
-        lng = typeof placeDetails.geometry.location.lng === 'function'
-          ? placeDetails.geometry.location.lng()
-          : placeDetails.geometry.location.lng;
-      }
-      const formattedLocation = formatLocationAddress(placeDetails);
-      const components = formattedLocation.components || {};
-      const finalAddress = formattedLocation.address || placeDetails.formatted_address || placeDetails.name || "";
-      setNewLocation(prev => ({
-        ...prev,
-        address: finalAddress,
-        placeId: prediction.placeId,
-        lat,
-        lng,
-        premise: components.premise || "",
-        route: components.route || "",
-        neighborhood: components.neighborhood || "",
-        sublocality: components.sublocality || "",
-        city: components.city || "",
-        state: components.state || "",
-        pinCode: components.pinCode || ""
-      }));
-    } catch (error) {
-      const mainText = prediction.structuredFormat?.mainText?.text || prediction.text?.text || '';
-      const secondaryText = prediction.structuredFormat?.secondaryText?.text || '';
-      const fallbackAddress = secondaryText ? `${mainText}, ${secondaryText}` : mainText;
-      setNewLocation(prev => ({
-        ...prev,
-        address: fallbackAddress,
-        placeId: prediction.placeId,
-        premise: "",
-        route: "",
-        neighborhood: "",
-        sublocality: "",
-        city: "",
-        state: "",
-        pinCode: ""
-      }));
-    }
-  };
-
-  const handleGetCurrentLocation = async () => {
-    if (!navigator.geolocation) {
-      setSearchErrorLocal("Geolocation is not supported by this browser.");
-      return;
-    }
-    setIsGettingLocation(true);
-    setSearchErrorLocal("");
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          const geocoder = new window.google.maps.Geocoder();
-          const response = await new Promise((resolve, reject) => {
-            geocoder.geocode(
-              { location: { lat: latitude, lng: longitude } },
-              (results, status) => {
-                if (status === "OK") resolve(results);
-                else reject(new Error(`Geocoding failed: ${status}`));
-              }
-            );
-          });
-          if (response && response[0]) {
-            const placeDetails = {
-              name: "",
-              formatted_address: response[0].formatted_address,
-              address_components: response[0].address_components,
-              types: response[0].types,
-              geometry: {
-                location: {
-                  lat: latitude,
-                  lng: longitude
-                }
-              }
-            };
-            const formattedLocation = formatLocationAddress(placeDetails);
-            const components = formattedLocation.components || {};
-            const finalAddress = formattedLocation.address || placeDetails.formatted_address || placeDetails.name || "";
-            setNewLocation(prev => ({
-              ...prev,
-              address: finalAddress,
-              lat: latitude,
-              lng: longitude,
-              premise: components.premise || "",
-              route: components.route || "",
-              neighborhood: components.neighborhood || "",
-              sublocality: components.sublocality || "",
-              city: components.city || "",
-              state: components.state || "",
-              pinCode: components.pinCode || ""
-            }));
-            setIsAutofilledLocal(true);
-          }
-        } catch (error) {
-          setSearchErrorLocal("Could not determine your location address.");
-        } finally {
-          setIsGettingLocation(false);
-        }
-      },
-      (error) => {
-        setSearchErrorLocal("Could not access your location. Please enable location services.");
-        setIsGettingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-    );
-  };
-
-  const handleClearSearch = () => {
+  // Custom handlers that work with the hook
+  const onSearchClick = () => handleSearch(newLocation.address);
+  const onPlaceSelectClick = (prediction) => handlePlaceSelect(prediction);
+  const onGetLocationClick = () => handleGetCurrentLocation();
+  const onClearClick = () => {
     setNewLocation(prev => ({ ...prev, address: "" }));
-    setSearchResultsLocal([]);
-    setShowResultsLocal(false);
-    setSearchErrorLocal("");
-    setHasSearchedLocal(false);
-    setIsAutofilledLocal(false);
+    setHasUserTyped(true); // User has interacted, so show search button next time
+    handleClearSearch();
   };
 
   const handleAddLocation = async (e) => {
     e.preventDefault();
     if (!user?.uid) return;
     if (!newLocation.name.trim() || !newLocation.address.trim()) {
-      setSearchErrorLocal("Please fill out both location name and address.");
+      setFormError("Please fill out both location name and address.");
       return;
     }
     const cleanLocation = {
@@ -262,7 +132,7 @@ export default function AddLocationModal() {
       setShowAddLocationModal(false);
       setEditingLocationId(null);
       setNewLocation({ name: "", address: "" });
-      setSearchErrorLocal("");
+      setFormError("");
       setTimeout(() => setLocationSuccessMessage(""), 5000);
     } catch (error) {
       console.error("Error saving location:", error);
@@ -270,13 +140,23 @@ export default function AddLocationModal() {
       if (error && error.message) {
         errorMsg += `\n${error.message}`;
       }
-      setSearchErrorLocal(errorMsg);
+      setFormError(errorMsg);
       toast({
         title: "Error",
         description: errorMsg,
         variant: "destructive"
       });
     }
+  };
+
+  // Unified close handler
+  const handleCloseModal = () => {
+    setShowAddLocationModal(false);
+    setEditingLocationId(null);
+    setNewLocation({ name: "", address: "" });
+    setLocationSuccessMessage("");
+    setFormError("");
+    handleClearSearch();
   };
 
   if (!showAddLocationModal) return null;
@@ -286,15 +166,7 @@ export default function AddLocationModal() {
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={e => {
         if (e.target === e.currentTarget) {
-          setShowAddLocationModal(false);
-          setEditingLocationId(null);
-          setNewLocation({ name: "", address: "" });
-          setLocationSuccessMessage("");
-          setHasSearchedLocal(false);
-          setIsAutofilledLocal(false);
-          setSearchResultsLocal([]);
-          setShowResultsLocal(false);
-          setSearchErrorLocal("");
+          handleCloseModal();
         }
       }}
     >
@@ -305,17 +177,7 @@ export default function AddLocationModal() {
               {editingLocationId ? "Edit Location" : "Add New Location"}
             </h2>
             <button
-              onClick={() => {
-                setShowAddLocationModal(false);
-                setEditingLocationId(null);
-                setNewLocation({ name: "", address: "" });
-                setLocationSuccessMessage("");
-                setHasSearchedLocal(false);
-                setIsAutofilledLocal(false);
-                setSearchResultsLocal([]);
-                setShowResultsLocal(false);
-                setSearchErrorLocal("");
-              }}
+              onClick={handleCloseModal}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />
@@ -342,7 +204,7 @@ export default function AddLocationModal() {
               <div className="relative">
                 <LocationButton
                   isLoading={isGettingLocation}
-                  onClick={handleGetCurrentLocation}
+                  onClick={onGetLocationClick}
                   className="absolute left-2 top-1/2 -translate-y-1/2 !p-1 !w-5 !h-5"
                   style={{ minWidth: 28, minHeight: 28 }}
                 />
@@ -350,17 +212,19 @@ export default function AddLocationModal() {
                   type="text"
                   id="location-address"
                   value={newLocation.address}
-                  onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
+                  onChange={(e) => {
+                    setNewLocation({ ...newLocation, address: e.target.value });
+                    setHasUserTyped(true); // User has started typing
+                  }}
                   placeholder="Enter address"
                   className={clsx(
                     "pl-14 pr-12 h-12 w-full border-2 focus:border-[#4F46E5] focus:ring-0 outline-none rounded-md",
-                    searchError ? "border-red-500 bg-red-50" : "border-gray-300"
+                    searchError || formError ? "border-red-500 bg-red-50" : "border-gray-300"
                   )}
                   ref={locationInputRef}
                   autoComplete="off"
                   onFocus={() => {
                     setIsLocationFocused(true);
-                    setSearchErrorLocal("");
                   }}
                   onBlur={() => setIsLocationFocused(false)}
                   onKeyDown={e => {
@@ -368,23 +232,37 @@ export default function AddLocationModal() {
                       e.key === "Enter" &&
                       newLocation.address.trim() &&
                       !isSearching &&
-                      newLocation.address.trim().length >= 3
+                      newLocation.address.trim().length >= 5
                     ) {
                       e.preventDefault();
-                      handleSearch();
+                      onSearchClick();
                     }
                   }}
                   required
                 />
-                {newLocation.address.trim() && !isSearching && newLocation.address.trim().length >= 3 && (
-                  <SearchButton
-                    isLoading={false}
-                    showClear={isAutofilled || showResults}
-                    onClick={(isAutofilled || showResults) ? handleClearSearch : handleSearch}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                    aria-label={(isAutofilled || showResults) ? "Clear address" : "Search address"}
-                    tabIndex={0}
-                  />
+                {/* Show X (clear) button when editing initially, then switch to search button after user types or clears */}
+                {newLocation.address.trim() && !isSearching && newLocation.address.trim().length >= 5 && (
+                  editingLocationId && !hasUserTyped && !isAutofilled ? (
+                    <SearchButton
+                      isLoading={false}
+                      showClear={true}
+                      onClick={onClearClick}
+                      onClear={onClearClick}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                      aria-label="Clear address"
+                      tabIndex={0}
+                    />
+                  ) : (
+                    <SearchButton
+                      isLoading={false}
+                      showClear={isAutofilled || showResults}
+                      onClick={onSearchClick}
+                      onClear={onClearClick}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                      aria-label={(isAutofilled || showResults) ? "Clear address" : "Search address"}
+                      tabIndex={0}
+                    />
+                  )
                 )}
                 {newLocation.address.trim() && isSearching && (
                   <button
@@ -399,21 +277,21 @@ export default function AddLocationModal() {
                 <LocationDropdown
                   results={searchResults}
                   show={showResults}
-                  onSelect={handlePlaceSelect}
+                  onSelect={onPlaceSelectClick}
                   inputRef={locationInputRef}
                 />
               </div>
-              {isLocationFocused && !searchError && (
+              {isLocationFocused && !searchError && !formError && (
                 <p className="text-blue-600 text-sm mt-1">
-                  Click on the location icon for automatic fetching or enter at least 3 characters to search.
+                  Click on the location icon for automatic fetching or enter at least 5 characters to search.
                 </p>
               )}
-              {searchError && (
+              {(searchError || formError) && (
                 <p className="text-red-500 text-sm mt-1 flex items-center">
                   <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  {searchError}
+                  {searchError || formError}
                 </p>
               )}
             </div>
@@ -421,17 +299,7 @@ export default function AddLocationModal() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setShowAddLocationModal(false);
-                  setEditingLocationId(null);
-                  setNewLocation({ name: "", address: "" });
-                  setLocationSuccessMessage("");
-                  setHasSearchedLocal(false);
-                  setIsAutofilledLocal(false);
-                  setSearchResultsLocal([]);
-                  setShowResultsLocal(false);
-                  setSearchErrorLocal("");
-                }}
+                onClick={handleCloseModal}
                 className="border-gray-300"
               >
                 Cancel

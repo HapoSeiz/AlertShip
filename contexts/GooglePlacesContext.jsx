@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useRef, useState, useEffect, useCallback } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { formatLocationAddress } from "@/lib/formatLocationAddress";
 
 const GooglePlacesContext = createContext();
 
@@ -156,7 +155,6 @@ export function GooglePlacesProvider({ children }) {
       reverseGeocode,
       resetSessionToken,
       sessionTokenRef
-      ,formatLocationAddress
     }}>
       {children}
     </GooglePlacesContext.Provider>

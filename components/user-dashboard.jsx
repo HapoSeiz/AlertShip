@@ -5,8 +5,8 @@ import { useDashboard } from "@/hooks/useDashboard";
 import { useDashboardHandlers } from "@/hooks/useDashboardHandlers";
 import { DashboardProvider, useDashboardContext } from "@/contexts/DashboardContext";
 
-import OutagesPage from "@/components/dashboard/OutagesPage";
 import OverviewTab from "@/components/dashboard/OverviewTab";
+import OutagesPage from "@/components/dashboard/OutagesPage";
 import MyReportsTab from "@/components/dashboard/MyReportsTab";
 import SavedLocationsTab from "@/components/dashboard/SavedLocationsTab";
 import NotificationSettingsTab from "@/components/dashboard/NotificationSettingsTab";

@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { MapPin, MoreHorizontal } from "lucide-react";
 import {
@@ -21,7 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import DeleteLocationModal from "./DeleteLocationModal";
+const DeleteLocationModal = dynamic(() => import("@/components/dashboard/DeleteLocationModal"), { ssr: false });
 import { useDashboardContext } from "@/contexts/DashboardContext";
 import {
   fetchUserProfile,
@@ -49,6 +50,84 @@ export default function SavedLocationsTab() {
     setLocationSuccessMessage,
   } = useDashboardContext();
 
+// Memoized LocationItem component for rendering each saved location
+const LocationItem = React.memo(function LocationItem({ location, onEdit, onDelete, onSetDefault, onViewOutages }) {
+  return (
+    <div className="border rounded-lg p-6">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-4">
+          <div className="w-[52px] sm:w-[48px] lg:w-[40px] aspect-square bg-[#4F46E5]/10 rounded-full flex items-center justify-center p-1.5 sm:p-1.5 lg:p-1.5">
+            <MapPin className="w-6 h-6 sm:w-6 sm:h-6 lg:w-6 lg:h-6 text-[#4F46E5]" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-[#1F2937] text-lg">{location.name}</h3>
+            <p className="text-gray-600 mt-1">{location.address}</p>
+          </div>
+        </div>
+        {/* Desktop: show buttons, Mobile: show menu */}
+        <div className="hidden sm:flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewOutages(location.id)}
+            className="border-gray-300 hover:bg-[#F59E0B] hover:border-[#F59E0B] hover:text-white"
+          >
+            View Outages
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(location.id)}
+            className="border-gray-300 hover:bg-[#F59E0B] hover:border-[#F59E0B] hover:text-white"
+          >
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDelete(location)}
+            className="border-[#4F46E5] text-[#4F46E5] hover:bg-[#4F46E5] hover:text-white"
+          >
+            Delete
+          </Button>
+        </div>
+        <div className="sm:hidden flex self-start mt-[-8px]">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="p-1">
+                <MoreHorizontal className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="bg-white border border-gray-200 rounded-xl shadow-xl min-w-[160px] py-2 px-0 mt-2"
+              style={{ zIndex: 9999 }}
+            >
+              <DropdownMenuItem
+                onClick={() => onViewOutages(location.id)}
+                className="px-5 py-3 text-base text-gray-900 hover:bg-[#F59E0B]/10 hover:text-[#F59E0B] rounded-lg transition-colors cursor-pointer"
+              >
+                View Outages
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onEdit(location.id)}
+                className="px-5 py-3 text-base text-gray-900 hover:bg-[#F59E0B]/10 hover:text-[#F59E0B] rounded-lg transition-colors cursor-pointer"
+              >
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(location)}
+                className="px-5 py-3 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors cursor-pointer"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 
 
@@ -131,33 +210,49 @@ export default function SavedLocationsTab() {
     }
   };
 
-  // Edit location (open modal)
-  const handleEditLocation = (locationId) => {
-    const locationToEdit = savedLocations.find((loc) => loc.id === locationId)
+
+  // Memoized: Edit location (open modal)
+  const handleEditLocation = React.useCallback((locationId) => {
+    const locationToEdit = savedLocations.find((loc) => loc.id === locationId);
     if (locationToEdit) {
-      setNewLocation(locationToEdit)
-      setEditingLocationId(locationId)
-      setShowAddLocationModal(true)
+      setNewLocation(locationToEdit);
+      setEditingLocationId(locationId);
+      setShowAddLocationModal(true);
     }
-  }
+  }, [savedLocations, setNewLocation, setEditingLocationId, setShowAddLocationModal]);
 
-  // Delete location
-  const handleDeleteLocation = (location) => {
-    setLocationToDelete(location)
-    setShowDeleteModal(true)
-  }
+  // Memoized: Delete location
+  const handleDeleteLocation = React.useCallback((location) => {
+    setLocationToDelete(location);
+    setShowDeleteModal(true);
+  }, [setLocationToDelete, setShowDeleteModal]);
 
-  // Confirm delete location
+  // Memoized: Set as default location
+
+  const handleSetAsDefaultMemo = React.useCallback((locationId) => {
+    if (typeof handleSetAsDefault === 'function') {
+      handleSetAsDefault(locationId);
+    }
+  }, [handleSetAsDefault]);
+
+  // Memoized: View outages for location
+  const handleViewOutagesMemo = React.useCallback((locationId) => {
+    if (typeof handleViewOutages === 'function') {
+      handleViewOutages(locationId);
+    }
+  }, [handleViewOutages]);
+
+  // Confirm delete location (not passed to LocationItem, but keep as is)
   const confirmDeleteLocation = async () => {
-    if (!user?.uid || !locationToDelete) return
-    const updatedLocations = savedLocations.filter((loc) => loc.id !== locationToDelete.id)
-    setSavedLocations(updatedLocations)
-    await updateSavedLocations(user.uid, updatedLocations)
-    setLocationSuccessMessage(`Location "${locationToDelete.name}" deleted successfully!`)
-    setShowDeleteModal(false)
-    setLocationToDelete(null)
-    setTimeout(() => setLocationSuccessMessage(""), 5000)
-  }
+    if (!user?.uid || !locationToDelete) return;
+    const updatedLocations = savedLocations.filter((loc) => loc.id !== locationToDelete.id);
+    setSavedLocations(updatedLocations);
+    await updateSavedLocations(user.uid, updatedLocations);
+    setLocationSuccessMessage(`Location "${locationToDelete.name}" deleted successfully!`);
+    setShowDeleteModal(false);
+    setLocationToDelete(null);
+    setTimeout(() => setLocationSuccessMessage(""), 5000);
+  };
 
   return (
     <>
@@ -180,79 +275,14 @@ export default function SavedLocationsTab() {
         ) : (
           <div className="space-y-4">
             {savedLocations.map((location) => (
-              <div key={location.id} className="border rounded-lg p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-[52px] sm:w-[48px] lg:w-[40px] aspect-square bg-[#4F46E5]/10 rounded-full flex items-center justify-center p-1.5 sm:p-1.5 lg:p-1.5">
-                      <MapPin className="w-6 h-6 sm:w-6 sm:h-6 lg:w-6 lg:h-6 text-[#4F46E5]" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-[#1F2937] text-lg">{location.name}</h3>
-                      <p className="text-gray-600 mt-1">{location.address}</p>
-                    </div>
-                  </div>
-                  {/* Desktop: show buttons, Mobile: show menu */}
-                  <div className="hidden sm:flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewOutages(location.id)}
-                      className="border-gray-300 hover:bg-[#F59E0B] hover:border-[#F59E0B] hover:text-white"
-                    >
-                      View Outages
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditLocation(location.id)}
-                      className="border-gray-300 hover:bg-[#F59E0B] hover:border-[#F59E0B] hover:text-white"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteLocation(location)}
-                      className="border-[#4F46E5] text-[#4F46E5] hover:bg-[#4F46E5] hover:text-white"
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                  <div className="sm:hidden flex self-start mt-[-8px]">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="p-1">
-                          <MoreHorizontal className="w-5 h-5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="bg-white border border-gray-200 rounded-xl shadow-xl min-w-[160px] py-2 px-0 mt-2"
-                        style={{ zIndex: 9999 }}
-                      >
-                        <DropdownMenuItem
-                          onClick={() => handleViewOutages(location.id)}
-                          className="px-5 py-3 text-base text-gray-900 hover:bg-[#F59E0B]/10 hover:text-[#F59E0B] rounded-lg transition-colors cursor-pointer"
-                        >
-                          View Outages
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleEditLocation(location.id)}
-                          className="px-5 py-3 text-base text-gray-900 hover:bg-[#F59E0B]/10 hover:text-[#F59E0B] rounded-lg transition-colors cursor-pointer"
-                        >
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteLocation(location)}
-                          className="px-5 py-3 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors cursor-pointer"
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </div>
+              <LocationItem
+                key={location.id}
+                location={location}
+                onEdit={handleEditLocation}
+                onDelete={handleDeleteLocation}
+                onSetDefault={handleSetAsDefaultMemo}
+                onViewOutages={handleViewOutagesMemo}
+              />
             ))}
           </div>
         )}

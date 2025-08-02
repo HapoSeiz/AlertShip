@@ -45,7 +45,7 @@ export default function LandingPage() {
   
   // Location search using Photon API (via Next.js proxy)
   const handleLocationSearch = async () => {
-    if (location.trim().length < 3) {
+    if (location.trim().length < 5) {
       setIsSearching(false);
       return;
     }
@@ -75,7 +75,7 @@ export default function LandingPage() {
   
   // Clear search results and dropdown if input is cleared or too short
   useEffect(() => {
-    if (location.trim().length < 3) {
+    if (location.trim().length < 5) {
       setSearchResults([]);
       setShowDropdown(false);
     }
@@ -233,14 +233,14 @@ export default function LandingPage() {
                         if (e.key === "Enter") {
                           if (selectedFromDropdown) {
                             handleLocationSubmit();
-                          } else if ((location || "").trim().length >= 3) {
+                          } else if ((location || "").trim().length >= 5) {
                             handleLocationSearch();
                           }
                         }
                       }}
                     />
                     {/* Search Icon Button (inside input, right) */}
-                    {(location || "").trim().length >= 3 && (
+                    {(location || "").trim().length >= 5 && (
                       <SearchButton
                         isLoading={isSearching}
                         onClick={handleLocationSearch}
@@ -287,7 +287,7 @@ export default function LandingPage() {
                 {/* Info Message */}
                 {showInfoMessage && (
                   <p className="text-[#4F46E5] text-sm mt-2 text-center">
-                    Click the location icon for automatic fetching or enter at least 3 characters to search.
+                    Click the location icon for automatic fetching or enter at least 5 characters to search.
                   </p>
                 )}
               </div>

@@ -100,7 +100,7 @@ function LocationDetails({
                   e.key === "Enter" &&
                   location.locality.trim() &&
                   !isSearching &&
-                  location.locality.trim().length >= 3
+                  location.locality.trim().length >= 5
                 ) {
                   e.preventDefault();
                   handleSearchClick();
@@ -108,7 +108,7 @@ function LocationDetails({
               }}
             />
             {/* SearchButton - shows X after autofill, search otherwise */}
-            {location.locality.trim() && !isSearching && location.locality.trim().length >= 3 && (
+            {location.locality.trim() && !isSearching && location.locality.trim().length >= 5 && (
               <SearchButton
                 isLoading={false}
                 showClear={isAutofilled}
@@ -143,7 +143,7 @@ function LocationDetails({
           {/* Info or Error Messages */}
           {isLocalityFocused && !formErrors.locality && !searchError && (
             <p className="text-blue-600 text-sm mt-1">
-              Click on the location icon for automatic fetching or enter at least 3 characters to search.
+              Click on the location icon for automatic fetching or enter at least 5 characters to search.
             </p>
           )}
           {(formErrors.locality || searchError) && (
