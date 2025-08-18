@@ -168,7 +168,17 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
 
   // Handlers
   const handleTypeChange = useCallback((type) => {
-    setFormData((prev) => ({ ...prev, issue: { ...prev.issue, type } }));
+    setFormData((prev) => ({
+      ...prev,
+      issue: { ...prev.issue, type },
+      // Explicitly preserve location, lat, lng, etc.
+      location: { ...prev.location },
+      lat: prev.lat,
+      lng: prev.lng,
+      locationSource: prev.locationSource,
+      browserLat: prev.browserLat,
+      browserLng: prev.browserLng,
+    }));
   }, []);
 
   const handleLocationChange = useCallback((e) => {
