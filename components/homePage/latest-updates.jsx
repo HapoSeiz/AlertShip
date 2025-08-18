@@ -7,7 +7,10 @@ import { useEffect, useState } from "react"
 // Fetch latest reports from API
 async function fetchLatestReports() {
   try {
-    const res = await fetch('/api/latest-reports', { cache: 'no-store' });
+    // Add a short-lived cache-busting query param to avoid CDN/edge caching returning stale results
+    const url = `/api/latest-reports?bust=${Date.now()}`;
+    const res = await fetch(url, { cache: 'no-store' });
+
     if (!res.ok) throw new Error('Failed to fetch');
     const data = await res.json();
     return data.reports || [];
@@ -24,10 +27,27 @@ export default function LatestUpdates() {
 
   useEffect(() => {
     setMounted(true);
-    fetchLatestReports().then((data) => {
+    let mountedFlag = true;
+    const load = async () => {
+      const data = await fetchLatestReports();
+      if (!mountedFlag) return;
       setReports(data);
       setLoading(false);
-    });
+    };
+    load();
+
+    const onReportsUpdated = async () => {
+      setLoading(true);
+      const data = await fetchLatestReports();
+      setReports(data);
+      setLoading(false);
+    };
+    window.addEventListener('reports:updated', onReportsUpdated);
+
+    return () => {
+      mountedFlag = false;
+      window.removeEventListener('reports:updated', onReportsUpdated);
+    };
   }, []);
 
   return (

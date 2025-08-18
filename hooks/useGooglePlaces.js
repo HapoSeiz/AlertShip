@@ -79,6 +79,12 @@ export function useGooglePlaces({ toast, onLocationUpdate, onFocusNext } = {}) {
         lng = typeof placeDetails.geometry.location.lng === 'function'
           ? placeDetails.geometry.location.lng()
           : placeDetails.geometry.location.lng;
+        
+        // Ensure coordinates are valid numbers
+        lat = typeof lat === 'number' && !isNaN(lat) ? lat : null;
+        lng = typeof lng === 'number' && !isNaN(lng) ? lng : null;
+        
+        console.log("Extracted coordinates from place details:", { lat, lng });
       }
 
       // Use only formatLocationAddress for all address fields
@@ -103,6 +109,8 @@ export function useGooglePlaces({ toast, onLocationUpdate, onFocusNext } = {}) {
         locationSource: preserveBrowserCoords ? undefined : 'search'
       };
 
+      console.log("Location data being passed to onLocationUpdate:", locationData);
+
       // Call update callback if provided
       if (onLocationUpdate) {
         onLocationUpdate(locationData, { preserveBrowserCoords });
@@ -122,9 +130,13 @@ export function useGooglePlaces({ toast, onLocationUpdate, onFocusNext } = {}) {
       const secondaryText = prediction.structuredFormat?.secondaryText?.text || '';
       const fallbackAddress = secondaryText ? `${mainText}, ${secondaryText}` : mainText;
 
+      console.log("Using fallback data with coordinates:", { lat, lng });
+
       const fallbackData = {
         address: fallbackAddress,
         placeId: prediction.placeId,
+        lat: preserveBrowserCoords ? undefined : lat,
+        lng: preserveBrowserCoords ? undefined : lng,
         premise: "",
         route: "",
         neighborhood: "",
@@ -133,7 +145,7 @@ export function useGooglePlaces({ toast, onLocationUpdate, onFocusNext } = {}) {
         state: "",
         pinCode: "",
         locality: fallbackAddress,
-        locationSource: 'search'
+        locationSource: preserveBrowserCoords ? undefined : 'search'
       };
 
       if (onLocationUpdate) {

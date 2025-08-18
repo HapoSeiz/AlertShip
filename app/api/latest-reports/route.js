@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, applicationDefault, getApps } from 'firebase-admin/app';
+import { db } from '@/firebase/firebaseAdmin';
 
-// Initialize Firebase Admin if not already initialized
-if (!getApps().length) {
-  initializeApp({
-    credential: applicationDefault(),
-  });
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-const db = getFirestore();
 
 export async function GET() {
   try {
@@ -20,7 +14,19 @@ export async function GET() {
       .get();
 
     const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return NextResponse.json({ reports });
+    return new NextResponse(
+      JSON.stringify({ reports }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store'
+        }
+      }
+    );
   } catch (error) {
     console.error('Error fetching latest reports:', error);
     return NextResponse.json({ error: 'Failed to fetch latest reports.' }, { status: 500 });

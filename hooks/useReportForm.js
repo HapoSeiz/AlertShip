@@ -30,6 +30,8 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
       console.log("locationData received:", locationData);
       
       setFormData((prev) => {
+        console.log("Previous formData lat/lng:", prev.lat, prev.lng);
+        
         // Save all address fields exactly like the dashboard does
         const bestLocality =
           locationData.locality ||
@@ -57,18 +59,21 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
         };
         
         console.log("newLocationData being saved:", newLocationData);
+        console.log("Coordinates being set - lat:", locationData.lat, "lng:", locationData.lng);
         
-        return {
+        const updatedFormData = {
           ...prev,
           location: newLocationData,
-          lat: locationData.lat || prev.lat,
-          lng: locationData.lng || prev.lng,
+          lat: locationData.lat !== undefined ? locationData.lat : prev.lat,
+          lng: locationData.lng !== undefined ? locationData.lng : prev.lng,
           locationSource: locationData.locationSource || prev.locationSource,
           ...(locationData.locationSource === 'browser' && {
             browserLat: locationData.lat,
             browserLng: locationData.lng
           })
-        };
+        };    
+        console.log("Updated formData lat/lng:", updatedFormData.lat, updatedFormData.lng);
+        return updatedFormData;
       });
     },
     onFocusNext: () => {
@@ -109,22 +114,19 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
 
   const handlePlaceSelect = useCallback(async (prediction, descriptionInputRef) => {
     // Use the same logic as dashboard - let the hook handle the place selection
-    await googlePlaces.handlePlaceSelect(prediction, {
-      onLocationUpdate: (locationData) => {
-        // The main onLocationUpdate callback will handle saving all fields
-        // Just focus the description input if provided and empty
-        setTimeout(() => {
-          if (
-            descriptionInputRef &&
-            descriptionInputRef.current &&
-            descriptionValueRef &&
-            descriptionValueRef.current === ""
-          ) {
-            descriptionInputRef.current.focus();
-          }
-        }, 0);
+    await googlePlaces.handlePlaceSelect(prediction);
+    
+    // Focus the description input after place selection
+    setTimeout(() => {
+      if (
+        descriptionInputRef &&
+        descriptionInputRef.current &&
+        descriptionValueRef &&
+        descriptionValueRef.current === ""
+      ) {
+        descriptionInputRef.current.focus();
       }
-    });
+    }, 0);
   }, [googlePlaces, descriptionValueRef]);
 
   const handleGetCurrentLocation = useCallback((descriptionInputRef) => {
@@ -205,9 +207,18 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   // Submit handler with AbortController
   const handleSubmitReport = useCallback(async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate()) return;    
+    console.log("=== SUBMIT FORM DATA ===");
+    console.log("formData.lat:", formData.lat);
+    console.log("formData.lng:", formData.lng);
+    console.log("formData.locationSource:", formData.locationSource);
+    console.log("formData.browserLat:", formData.browserLat);
+    console.log("formData.browserLng:", formData.browserLng);
+    console.log("Full formData:", formData);
+    
     // Prevent submission if lat/lng are missing
     if (!formData.lat || !formData.lng) {
+      console.log("SUBMISSION BLOCKED: Missing coordinates");
       toast({
         title: "Location required",
         description: "Please select a valid location from the dropdown so we can accurately record the outage.",
@@ -266,6 +277,7 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
 
       console.log("Final payload coordinates:", payload.lat, payload.lng);
       console.log("Location source:", formData.locationSource);
+      console.log("Final payload being sent:", JSON.stringify(payload, null, 2));
       let res, result;
       const headers = idToken ? { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` } : { "Content-Type": "application/json" };
       if (formData.user.photo) {
@@ -303,6 +315,14 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
         setFormErrors({});
         setLocalityInputKey(Date.now());
         toast({ title: "Report submitted!", description: "Thank you for reporting the issue.", variant: "success" });
+        // Notify other parts of the app (homepage latest updates) to refresh
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('reports:updated'));
+          }
+        } catch (e) {
+          console.warn('Could not dispatch reports:updated event', e);
+        }
       } else {
         toast({ title: "Submission failed", description: result.error || "Failed to submit report.", variant: "destructive" });
       }
