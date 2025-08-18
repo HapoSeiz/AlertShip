@@ -148,10 +148,10 @@ export default function LatestUpdates() {
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="text-lg sm:text-xl font-bold mb-1 text-hover">
-                            {outage.address
-                              ? outage.address
-                              : outage.locality
-                                ? outage.locality + (outage.city && outage.city !== outage.locality ? ", " + outage.city : "")
+                            {outage.premise
+                              ? <><span>{outage.premise}</span>{outage.city && <>,<br />{outage.city}</>}</>
+                              : outage.sublocality
+                                ? <><span>{outage.sublocality}</span>{outage.city && <>,<br />{outage.city}</>}</>
                                 : outage.city || ""}
                           </h3>
                           <div className="mb-2">
