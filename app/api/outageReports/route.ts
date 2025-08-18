@@ -76,17 +76,47 @@ export async function POST(request: NextRequest) {
     }
 
     let docRef = null;
+    // Always store lat/lng as numbers or null, and parse from body if needed
+    const latValue = typeof lat === 'number' && !isNaN(lat) ? lat : null;
+    const lngValue = typeof lng === 'number' && !isNaN(lng) ? lng : null;
+    // Accept lat/lng from body as string or number
+    let finalLat = null;
+    let finalLng = null;
+    if (body.lat !== undefined && body.lat !== null && !isNaN(parseFloat(body.lat))) {
+      finalLat = parseFloat(body.lat);
+    } else if (latValue !== null) {
+      finalLat = latValue;
+    }
+    if (body.lng !== undefined && body.lng !== null && !isNaN(parseFloat(body.lng))) {
+      finalLng = parseFloat(body.lng);
+    } else if (lngValue !== null) {
+      finalLng = lngValue;
+    }
     try {
+      // Use the same logic as user location save (see AddLocationModal.jsx)
+      // Always save all address fields, defaulting to null if not present
       docRef = await db.collection('outageReports').add({
+        name: body.name ?? null,
+        address: body.address ?? null,
+        placeId: body.placeId ?? null,
+        lat: finalLat,
+        lng: finalLng,
+        premise: body.premise ?? null,
+        route: body.route ?? null,
+        neighborhood: body.neighborhood ?? null,
+        sublocality: body.sublocality ?? null,
+        locality: body.locality ?? null,
+        city: body.city ?? null,
+        state: body.state ?? null,
+        pinCode: body.pinCode ?? null,
+        // ...other fields
         ...body,
         uid: userUid,
         email: userEmail,
         source,
-        lat,
-        lng,
         timestamp: new Date().toISOString()
       });
-      console.log('[API] Successfully added outage report. Doc ID:', docRef.id);
+      console.log('[API] Successfully added outage report. Doc ID:', docRef.id, 'lat:', finalLat, 'lng:', finalLng);
     } catch (err) {
       console.error('[API] Error adding document to Firestore:', err);
       return NextResponse.json({ success: false, error: 'Failed to add report (Firestore error)' }, { status: 500 });
@@ -96,8 +126,8 @@ export async function POST(request: NextRequest) {
       id: docRef.id,
       geocodeStatus,
       geocodeError,
-      lat,
-      lng,
+      lat: latValue,
+      lng: lngValue,
       geocodeApiResponse
     });
   } catch (error) {
