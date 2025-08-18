@@ -26,33 +26,50 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   const googlePlaces = useGooglePlaces({
     toast,
     onLocationUpdate: (locationData) => {
-      // Robust fallback for locality
-      const bestLocality =
-        locationData.locality ||
-        locationData.premise ||
-        locationData.neighborhood ||
-        locationData.sublocality ||
-        locationData.route ||
-        locationData.city ||
-        locationData.address ||
-        "";
-      setFormData((prev) => ({
-        ...prev,
-        location: {
+      console.log("=== REPORT FORM onLocationUpdate ===");
+      console.log("locationData received:", locationData);
+      
+      setFormData((prev) => {
+        // Save all address fields exactly like the dashboard does
+        const bestLocality =
+          locationData.locality ||
+          locationData.premise ||
+          locationData.neighborhood ||
+          locationData.sublocality ||
+          locationData.route ||
+          locationData.city ||
+          locationData.address ||
+          "";
+        
+        const newLocationData = {
           ...prev.location,
+          // Save all address components from the hook (same as dashboard)
+          premise: locationData.premise || '',
+          route: locationData.route || '',
+          neighborhood: locationData.neighborhood || '',
+          sublocality: locationData.sublocality || '',
           locality: bestLocality,
           city: locationData.city || prev.location.city,
           state: locationData.state || prev.location.state,
           pinCode: locationData.pinCode || prev.location.pinCode,
-        },
-        lat: locationData.lat || prev.lat,
-        lng: locationData.lng || prev.lng,
-        locationSource: locationData.locationSource || prev.locationSource,
-        ...(locationData.locationSource === 'browser' && {
-          browserLat: locationData.lat,
-          browserLng: locationData.lng
-        })
-      }));
+          placeId: locationData.placeId || '',
+          address: locationData.address || '',
+        };
+        
+        console.log("newLocationData being saved:", newLocationData);
+        
+        return {
+          ...prev,
+          location: newLocationData,
+          lat: locationData.lat || prev.lat,
+          lng: locationData.lng || prev.lng,
+          locationSource: locationData.locationSource || prev.locationSource,
+          ...(locationData.locationSource === 'browser' && {
+            browserLat: locationData.lat,
+            browserLng: locationData.lng
+          })
+        };
+      });
     },
     onFocusNext: () => {
       // Focus description input after location selection
@@ -91,51 +108,11 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   }, [formErrors.locality, setFormErrors, googlePlaces]);
 
   const handlePlaceSelect = useCallback(async (prediction, descriptionInputRef) => {
-    // Let the hook handle the place selection and location formatting
+    // Use the same logic as dashboard - let the hook handle the place selection
     await googlePlaces.handlePlaceSelect(prediction, {
       onLocationUpdate: (locationData) => {
-        // Robust fallback for locality
-        const bestLocality =
-          locationData.locality ||
-          locationData.premise ||
-          locationData.neighborhood ||
-          locationData.sublocality ||
-          locationData.route ||
-          locationData.city ||
-          locationData.address ||
-          "";
-        setFormData((prev) => {
-          if (prev.locationSource === 'browser') {
-            // If we already have browser location, preserve lat/lng
-            return {
-              ...prev,
-              location: {
-                ...prev.location,
-                locality: bestLocality,
-                city: locationData.city || prev.location.city,
-                state: locationData.state || prev.location.state,
-                pinCode: locationData.pinCode || "",
-              },
-              // Keep browser coordinates
-            };
-          } else {
-            // Use search coordinates
-            return {
-              ...prev,
-              location: {
-                ...prev.location,
-                locality: bestLocality,
-                city: locationData.city || prev.location.city,
-                state: locationData.state || prev.location.state,
-                pinCode: locationData.pinCode || "",
-              },
-              lat: locationData.lat || prev.lat,
-              lng: locationData.lng || prev.lng,
-              locationSource: 'search',
-            };
-          }
-        });
-        // Focus description input if provided and empty
+        // The main onLocationUpdate callback will handle saving all fields
+        // Just focus the description input if provided and empty
         setTimeout(() => {
           if (
             descriptionInputRef &&
@@ -222,9 +199,22 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
     setIsSubmitting(true);
     abortControllerRef.current = new AbortController();
     try {
+      // Always include all address fields in the payload
       const payload = {
         ...formData.issue,
         ...formData.location,
+        premise: formData.location.premise || '',
+        route: formData.location.route || '',
+        neighborhood: formData.location.neighborhood || '',
+        sublocality: formData.location.sublocality || '',
+        locality: formData.location.locality || '',
+        city: formData.location.city || '',
+        state: formData.location.state || '',
+        pinCode: formData.location.pinCode || '',
+        placeId: formData.location.placeId || '',
+        address: formData.location.address || '',
+        lat: formData.lat,
+        lng: formData.lng,
         uid: user?.uid,
         email: user?.email,
       };

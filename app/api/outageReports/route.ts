@@ -76,17 +76,34 @@ export async function POST(request: NextRequest) {
     }
 
     let docRef = null;
+    // Always store lat/lng as numbers or null
+    const latValue = typeof lat === 'number' && !isNaN(lat) ? lat : null;
+    const lngValue = typeof lng === 'number' && !isNaN(lng) ? lng : null;
     try {
+      // Use the same logic as user location save (see AddLocationModal.jsx)
+      // Always save all address fields, defaulting to null if not present
       docRef = await db.collection('outageReports').add({
+        name: body.name ?? null,
+        address: body.address ?? null,
+        placeId: body.placeId ?? null,
+        lat: (typeof body.lat === 'number' ? body.lat : latValue),
+        lng: (typeof body.lng === 'number' ? body.lng : lngValue),
+        premise: body.premise ?? null,
+        route: body.route ?? null,
+        neighborhood: body.neighborhood ?? null,
+        sublocality: body.sublocality ?? null,
+        locality: body.locality ?? null,
+        city: body.city ?? null,
+        state: body.state ?? null,
+        pinCode: body.pinCode ?? null,
+        // ...other fields
         ...body,
         uid: userUid,
         email: userEmail,
         source,
-        lat,
-        lng,
         timestamp: new Date().toISOString()
       });
-      console.log('[API] Successfully added outage report. Doc ID:', docRef.id);
+      console.log('[API] Successfully added outage report. Doc ID:', docRef.id, 'lat:', latValue, 'lng:', lngValue);
     } catch (err) {
       console.error('[API] Error adding document to Firestore:', err);
       return NextResponse.json({ success: false, error: 'Failed to add report (Firestore error)' }, { status: 500 });
@@ -96,8 +113,8 @@ export async function POST(request: NextRequest) {
       id: docRef.id,
       geocodeStatus,
       geocodeError,
-      lat,
-      lng,
+      lat: latValue,
+      lng: lngValue,
       geocodeApiResponse
     });
   } catch (error) {

@@ -3,47 +3,32 @@
 import { Zap, Droplet } from "lucide-react"
 import { useEffect, useState } from "react"
 
-const outageData = [
-  {
-    id: 1,
-    location: "Himayath Nagar",
-    city: "Hyderabad",
-    type: "electricity",
-    description: "Electricity outage due to regular maintenance between 13:00 and 14:00 hrs.",
-    source: "official",
-  },
-  {
-    id: 2,
-    location: "Lajpat Nagar",
-    city: "Delhi",
-    type: "water",
-    description: "Water line damaged due to road construction.",
-    source: "crowdsourced",
-  },
-  {
-    id: 3,
-    location: "Tansen Nagar",
-    city: "Gwalior",
-    type: "water",
-    description: "Water outage due to damage of pipelines during maintenance.",
-    source: "official",
-  },
-  {
-    id: 4,
-    location: "Whitefield",
-    city: "Bengaluru",
-    type: "electricity",
-    description: "Electricity lines damaged due to heavy rains. ETA ~ 4 hours.",
-    source: "crowdsourced",
-  },
-]
+
+// Fetch latest reports from API
+async function fetchLatestReports() {
+  try {
+    const res = await fetch('/api/latest-reports', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    return data.reports || [];
+  } catch (e) {
+    return [];
+  }
+}
 
 export default function LatestUpdates() {
-  const [mounted, setMounted] = useState(false)
+
+  const [mounted, setMounted] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+    fetchLatestReports().then((data) => {
+      setReports(data);
+      setLoading(false);
+    });
+  }, []);
 
   return (
     <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8 bg-white">
@@ -142,55 +127,64 @@ export default function LatestUpdates() {
           {/* Cards Grid */}
           <div className="lg:col-span-9">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {outageData.map((outage, index) => (
-                <div
-                  key={outage.id}
-                  className={`
-                    h-44 sm:h-52 lg:h-56 rounded-2xl sm:rounded-3xl p-4 sm:p-6 relative overflow-hidden cursor-pointer
-                    ${outage.type === "electricity" ? "bg-[#F59E0B] electricity-card" : "bg-[#4F46E5] water-card"}
-                    text-white outage-card float-animation fade-in-up
-                  `}
-                  style={{
-                    animationDelay: `${index * 0.15}s`,
-                  }}
-                >
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-lg sm:text-xl font-bold mb-1 text-hover">
-                          {outage.location}, <br />
-                          {outage.city}
-                        </h3>
-                        <div className="mb-2">
-                          <span
-                            className={`text-xs px-2 py-1 rounded font-medium ${
-                              outage.source === "official"
-                                ? "bg-white/30 text-white border border-white/40"
-                                : "bg-white/20 text-white border border-white/30"
-                            }`}
-                          >
-                            {outage.source === "official" ? "Official" : "Crowdsourced"}
-                          </span>
+              {loading ? (
+                <div className="col-span-2 text-center py-12 text-gray-400 text-lg">Loading latest updates...</div>
+              ) : reports.length === 0 ? (
+                <div className="col-span-2 text-center py-12 text-gray-400 text-lg">No recent outage reports found.</div>
+              ) : (
+                reports.map((outage, index) => (
+                  <div
+                    key={outage.id}
+                    className={`
+                      h-44 sm:h-52 lg:h-56 rounded-2xl sm:rounded-3xl p-4 sm:p-6 relative overflow-hidden cursor-pointer
+                      ${outage.type === "electricity" ? "bg-[#F59E0B] electricity-card" : "bg-[#4F46E5] water-card"}
+                      text-white outage-card float-animation fade-in-up
+                    `}
+                    style={{
+                      animationDelay: `${index * 0.15}s`,
+                    }}
+                  >
+                    <div className="relative z-10">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-lg sm:text-xl font-bold mb-1 text-hover">
+                            {outage.address
+                              ? outage.address
+                              : outage.locality
+                                ? outage.locality + (outage.city && outage.city !== outage.locality ? ", " + outage.city : "")
+                                : outage.city || ""}
+                          </h3>
+                          <div className="mb-2">
+                            <span
+                              className={`text-xs px-2 py-1 rounded font-medium ${
+                                outage.source === "official"
+                                  ? "bg-white/30 text-white border border-white/40"
+                                  : "bg-white/20 text-white border-white/30"
+                              }`}
+                            >
+                              {outage.source === "official" ? "Official" : "Crowdsourced"}
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center icon-hover ${
+                            outage.type === "electricity" ? "bg-white/20" : "bg-white/20"
+                          }`}
+                        >
+                          {outage.type === "electricity" ? (
+                            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                          ) : (
+                            <Droplet className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                          )}
                         </div>
                       </div>
-                      <div
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center icon-hover ${
-                          outage.type === "electricity" ? "bg-white/20" : "bg-white/20"
-                        }`}
-                      >
-                        {outage.type === "electricity" ? (
-                          <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        ) : (
-                          <Droplet className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        )}
-                      </div>
+                      <p className="mt-3 sm:mt-4 text-white/90 description-hover text-sm sm:text-base">
+                        {outage.description}
+                      </p>
                     </div>
-                    <p className="mt-3 sm:mt-4 text-white/90 description-hover text-sm sm:text-base">
-                      {outage.description}
-                    </p>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
