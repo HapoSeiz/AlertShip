@@ -55,9 +55,9 @@ function LocationDetails({
   };
 
   // Wrap onPlaceSelect to set autofill state
-  const handlePlaceSelect = (result, ref) => {
+  const handlePlaceSelect = (result) => {
     setIsAutofilled(true);
-    if (onPlaceSelect) onPlaceSelect(result, ref);
+    if (onPlaceSelect) onPlaceSelect(result, descriptionInputRef);
   };
 
   return (

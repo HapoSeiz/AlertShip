@@ -103,18 +103,44 @@ export function GooglePlacesProvider({ children }) {
       const place = placePrediction.toPlace();
       await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "addressComponents", "location"] });
       console.log('[GooglePlacesContext] fetchPlaceDetails: Place details fetched', place);
-      return {
+      console.log('[GooglePlacesContext] place.location:', place.location);
+      console.log('[GooglePlacesContext] place.location?.lat:', place.location?.lat);
+      console.log('[GooglePlacesContext] place.location?.lng:', place.location?.lng);
+      
+      // Handle both property and function-based location access
+      const getLatLng = (location) => {
+        if (!location) return { lat: null, lng: null };
+        
+        // Try direct property access first (new API)
+        if (typeof location.lat === 'number' && typeof location.lng === 'number') {
+          return { lat: location.lat, lng: location.lng };
+        }
+        
+        // Try function access (legacy API)
+        if (typeof location.lat === 'function' && typeof location.lng === 'function') {
+          return { lat: location.lat(), lng: location.lng() };
+        }
+        
+        return { lat: null, lng: null };
+      };
+      
+      const { lat: locationLat, lng: locationLng } = getLatLng(place.location);
+      
+      const placeData = {
         place_id: place.id,
         name: place.displayName || "",
         formatted_address: place.formattedAddress || "",
         address_components: place.addressComponents || [],
         geometry: {
           location: {
-            lat: () => place.location?.lat || 0,
-            lng: () => place.location?.lng || 0
+            lat: () => locationLat,
+            lng: () => locationLng
           }
         }
       };
+      
+      console.log('[GooglePlacesContext] Returning place data:', placeData);
+      return placeData;
     } catch (error) {
       console.error('[GooglePlacesContext] fetchPlaceDetails: Error occurred', error);
       return null;
