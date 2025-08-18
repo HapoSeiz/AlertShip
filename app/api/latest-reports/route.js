@@ -4,6 +4,7 @@ import { db } from '@/firebase/firebaseAdmin';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+
 export async function GET() {
   try {
     // Fetch the latest 4 reports, ordered by timestamp descending

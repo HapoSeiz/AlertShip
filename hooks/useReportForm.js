@@ -71,8 +71,7 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
             browserLat: locationData.lat,
             browserLng: locationData.lng
           })
-        };
-        
+        };    
         console.log("Updated formData lat/lng:", updatedFormData.lat, updatedFormData.lng);
         return updatedFormData;
       });
@@ -208,8 +207,7 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   // Submit handler with AbortController
   const handleSubmitReport = useCallback(async (e) => {
     e.preventDefault();
-    if (!validate()) return;
-    
+    if (!validate()) return;    
     console.log("=== SUBMIT FORM DATA ===");
     console.log("formData.lat:", formData.lat);
     console.log("formData.lng:", formData.lng);

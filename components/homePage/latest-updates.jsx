@@ -10,6 +10,7 @@ async function fetchLatestReports() {
     // Add a short-lived cache-busting query param to avoid CDN/edge caching returning stale results
     const url = `/api/latest-reports?bust=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
+
     if (!res.ok) throw new Error('Failed to fetch');
     const data = await res.json();
     return data.reports || [];
