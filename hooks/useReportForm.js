@@ -303,6 +303,14 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
         setFormErrors({});
         setLocalityInputKey(Date.now());
         toast({ title: "Report submitted!", description: "Thank you for reporting the issue.", variant: "success" });
+        // Notify other parts of the app (homepage latest updates) to refresh
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('reports:updated'));
+          }
+        } catch (e) {
+          console.warn('Could not dispatch reports:updated event', e);
+        }
       } else {
         toast({ title: "Submission failed", description: result.error || "Failed to submit report.", variant: "destructive" });
       }
