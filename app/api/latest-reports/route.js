@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, applicationDefault, getApps } from 'firebase-admin/app';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Initialize Firebase Admin if not already initialized
 if (!getApps().length) {
   initializeApp({
