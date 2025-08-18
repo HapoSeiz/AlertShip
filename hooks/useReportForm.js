@@ -196,6 +196,15 @@ export function useReportForm({ user, toast, router, isLoaded, descriptionValueR
   const handleSubmitReport = useCallback(async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    // Prevent submission if lat/lng are missing
+    if (!formData.lat || !formData.lng) {
+      toast({
+        title: "Location required",
+        description: "Please select a valid location from the dropdown so we can accurately record the outage.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsSubmitting(true);
     abortControllerRef.current = new AbortController();
     try {

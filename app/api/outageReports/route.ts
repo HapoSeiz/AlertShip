@@ -76,9 +76,22 @@ export async function POST(request: NextRequest) {
     }
 
     let docRef = null;
-    // Always store lat/lng as numbers or null
+    // Always store lat/lng as numbers or null, and parse from body if needed
     const latValue = typeof lat === 'number' && !isNaN(lat) ? lat : null;
     const lngValue = typeof lng === 'number' && !isNaN(lng) ? lng : null;
+    // Accept lat/lng from body as string or number
+    let finalLat = null;
+    let finalLng = null;
+    if (body.lat !== undefined && body.lat !== null && !isNaN(parseFloat(body.lat))) {
+      finalLat = parseFloat(body.lat);
+    } else if (latValue !== null) {
+      finalLat = latValue;
+    }
+    if (body.lng !== undefined && body.lng !== null && !isNaN(parseFloat(body.lng))) {
+      finalLng = parseFloat(body.lng);
+    } else if (lngValue !== null) {
+      finalLng = lngValue;
+    }
     try {
       // Use the same logic as user location save (see AddLocationModal.jsx)
       // Always save all address fields, defaulting to null if not present
@@ -86,8 +99,8 @@ export async function POST(request: NextRequest) {
         name: body.name ?? null,
         address: body.address ?? null,
         placeId: body.placeId ?? null,
-        lat: (typeof body.lat === 'number' ? body.lat : latValue),
-        lng: (typeof body.lng === 'number' ? body.lng : lngValue),
+        lat: finalLat,
+        lng: finalLng,
         premise: body.premise ?? null,
         route: body.route ?? null,
         neighborhood: body.neighborhood ?? null,
@@ -103,7 +116,7 @@ export async function POST(request: NextRequest) {
         source,
         timestamp: new Date().toISOString()
       });
-      console.log('[API] Successfully added outage report. Doc ID:', docRef.id, 'lat:', latValue, 'lng:', lngValue);
+      console.log('[API] Successfully added outage report. Doc ID:', docRef.id, 'lat:', finalLat, 'lng:', finalLng);
     } catch (err) {
       console.error('[API] Error adding document to Firestore:', err);
       return NextResponse.json({ success: false, error: 'Failed to add report (Firestore error)' }, { status: 500 });
