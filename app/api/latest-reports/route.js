@@ -20,7 +20,19 @@ export async function GET() {
       .get();
 
     const reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return NextResponse.json({ reports });
+    return new NextResponse(
+      JSON.stringify({ reports }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store'
+        }
+      }
+    );
   } catch (error) {
     console.error('Error fetching latest reports:', error);
     return NextResponse.json({ error: 'Failed to fetch latest reports.' }, { status: 500 });
