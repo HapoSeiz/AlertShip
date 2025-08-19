@@ -32,36 +32,40 @@ export default function OutageMap() {
       if (!location) {
         setCenter({ lat: 22.5937, lng: 78.9629 });
         setZoom(4);
+        setLoading(false);
+        return;
+      }
+      if (!isLoaded || !window.google?.maps?.Geocoder) {
+        // Wait for Google Maps JS API to load
         return;
       }
       try {
-        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-          setError('Google Maps API key is missing.');
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode({ address: location }, (results, status) => {
+          console.log('Geocoder status:', status, 'Results:', results);
+          if (status === 'OK' && results && results[0]) {
+            const { lat, lng } = results[0].geometry.location;
+            setCenter({ lat: typeof lat === 'function' ? lat() : lat, lng: typeof lng === 'function' ? lng() : lng });
+            setZoom(12);
+            setError(null);
+          } else {
+            setError('Could not geocode city. Showing India.');
+            setCenter({ lat: 22.5937, lng: 78.9629 });
+            setZoom(4);
+          }
           setLoading(false);
-          return;
-        }
-        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`);
-        const data = await res.json();
-        console.log('Geocode result:', data);
-        if (data.status === 'OK' && data.results[0]) {
-          const { lat, lng } = data.results[0].geometry.location;
-          setCenter({ lat, lng });
-          setZoom(12);
-        } else {
-          setError('Could not geocode city. Showing India.');
-          setCenter({ lat: 22.5937, lng: 78.9629 });
-          setZoom(4);
-        }
+        });
       } catch (e) {
         setError('Failed to geocode city.');
         setCenter({ lat: 22.5937, lng: 78.9629 });
         setZoom(4);
-      } finally {
         setLoading(false);
       }
     }
-    geocodeCity();
-  }, [location]);
+    if (isLoaded) {
+      geocodeCity();
+    }
+  }, [location, isLoaded]);
 
   // Fetch outages for city
   useEffect(() => {
@@ -175,7 +179,15 @@ export default function OutageMap() {
           </div>
         </div>
       )}
-      {isLoaded && (
+      {!loading && outages.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="text-center text-gray-600">
+            <p className="text-lg font-semibold">No outages reported for this city.</p>
+            <p className="text-sm">Try selecting a different city or check back later.</p>
+          </div>
+        </div>
+      )}
+      {!loading && outages.length > 0 && isLoaded && (
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '400px' }}
           center={center}
