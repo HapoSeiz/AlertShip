@@ -1,171 +1,173 @@
+
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { Map } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
-
-// Use the hardcoded token
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+import { useSearchParams } from 'next/navigation';
 
 export default function OutageMap() {
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const [error, setError] = useState(null);
+
+  const searchParams = useSearchParams();
+  const location = searchParams.get('location');
+  const [center, setCenter] = useState({ lat: 22.5937, lng: 78.9629 }); // Default India
+  const [zoom, setZoom] = useState(4);
   const [outages, setOutages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeMarker, setActiveMarker] = useState(null);
+  const mapRef = useRef();
 
-  // Fetch outages from Firebase
+  // Use useJsApiLoader to load Google Maps script only once
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: ['places'], // Always include 'places' for consistency
+  });
+
+  // Geocode city to get center
   useEffect(() => {
-    const fetchOutages = async () => {
+    async function geocodeCity() {
+      if (!location) {
+        setCenter({ lat: 22.5937, lng: 78.9629 });
+        setZoom(4);
+        setLoading(false);
+        return;
+      }
+      if (!isLoaded || !window.google?.maps?.Geocoder) {
+        // Wait for Google Maps JS API to load
+        return;
+      }
       try {
-        setLoading(true);
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode({ address: location }, (results, status) => {
+          console.log('Geocoder status:', status, 'Results:', results);
+          if (status === 'OK' && results && results[0]) {
+            const { lat, lng } = results[0].geometry.location;
+            setCenter({ lat: typeof lat === 'function' ? lat() : lat, lng: typeof lng === 'function' ? lng() : lng });
+            setZoom(12);
+            setError(null);
+          } else {
+            setError('Could not geocode city. Showing India.');
+            setCenter({ lat: 22.5937, lng: 78.9629 });
+            setZoom(4);
+          }
+          setLoading(false);
+        });
+      } catch (e) {
+        setError('Failed to geocode city.');
+        setCenter({ lat: 22.5937, lng: 78.9629 });
+        setZoom(4);
+        setLoading(false);
+      }
+    }
+    if (isLoaded) {
+      geocodeCity();
+    }
+  }, [location, isLoaded]);
+
+  // Fetch outages for city
+  useEffect(() => {
+    async function fetchOutages() {
+      setLoading(true);
+      try {
+        if (!location) {
+          setOutages([]);
+          setLoading(false);
+          return;
+        }
         const outagesRef = collection(db, 'outageReports');
-        const querySnapshot = await getDocs(outagesRef);
-        const outageData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          // Ensure coordinates are numbers
+        const q = query(outagesRef, where('city', '==', location));
+        const querySnapshot = await getDocs(q);
+        console.log('Firestore outages:', querySnapshot.docs.length);
+        const data = querySnapshot.docs.map(doc => {
+          const d = doc.data();
           return {
             id: doc.id,
-            ...data,
-            latitude: parseFloat(data.latitude) || 0,
-            longitude: parseFloat(data.longitude) || 0
+            ...d,
+            lat: typeof d.lat === 'number' ? d.lat : parseFloat(d.lat),
+            lng: typeof d.lng === 'number' ? d.lng : parseFloat(d.lng),
           };
-        }).filter(outage => 
-          // Filter out outages with invalid coordinates
-          !isNaN(outage.latitude) && 
-          !isNaN(outage.longitude) &&
-          outage.latitude !== 0 && 
-          outage.longitude !== 0
-        );
-        
-        setOutages(outageData);
-      } catch (err) {
-        console.error('Error fetching outages:', err);
+        }).filter(o => !isNaN(o.lat) && !isNaN(o.lng));
+        setOutages(data);
+      } catch (e) {
         setError('Failed to fetch outage data');
       } finally {
         setLoading(false);
       }
-    };
-
+    }
     fetchOutages();
-  }, []); // Remove city dependency
+  }, [location]);
 
-  // Initialize map
-  useEffect(() => {
-    if (map.current) return;
-    if (!mapContainer.current) return;
-    if (!mapboxgl.accessToken) {
-      console.error('Mapbox token is missing');
-      setError('Mapbox token is not configured');
-      return;
-    }
-
-    try {
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [78.9629, 22.5937], // Center of India
-        zoom: 4
-      });
-
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-      // Add error handling for map loading
-      map.current.on('error', (e) => {
-        console.error('Mapbox error:', e);
-        setError('Error loading map');
-      });
-
-      return () => map.current?.remove();
-    } catch (err) {
-      console.error('Error initializing map:', err);
-      setError('Failed to initialize map');
-    }
-  }, []);
-
-  // Update markers when outages change
-  useEffect(() => {
-    if (!map.current || !outages.length) return;
-
-    // Clear existing markers
-    const markers = document.getElementsByClassName('outage-marker');
-    while (markers[0]) {
-      markers[0].remove();
-    }
-
-    // Add new markers
-    outages.forEach(outage => {
-      // Validate coordinates
-      const lat = parseFloat(outage.latitude);
-      const lng = parseFloat(outage.longitude);
-      
-      if (isNaN(lat) || isNaN(lng)) {
-        console.warn(`Invalid coordinates for outage ${outage.id}:`, { lat, lng });
-        return; // Skip this outage
-      }
-
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-        <div class="p-2">
-          <h3 class="font-bold text-lg">${outage.type}</h3>
-          <p class="text-gray-700">${outage.description}</p>
-          <p class="text-sm text-gray-500 mt-1">Location: ${outage.locality || 'Not specified'}</p>
-          <p class="text-sm text-gray-500">Reported: ${new Date(outage.timestamp).toLocaleString()}</p>
-        </div>
-      `);
-
-      const el = document.createElement('div');
-      el.className = 'outage-marker';
-      el.style.width = '24px';
-      el.style.height = '24px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = outage.type === 'Power Outage' ? '#ef4444' : '#3b82f6';
-      el.style.border = '2px solid white';
-      el.style.boxShadow = '0 0 4px rgba(0,0,0,0.3)';
-
-      new mapboxgl.Marker(el)
-        .setLngLat([lng, lat])
-        .setPopup(popup)
-        .addTo(map.current);
-    });
-
-    // Fit map to show all markers
-    if (outages.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      let validMarkers = 0;
-      
-      outages.forEach(outage => {
-        const lat = parseFloat(outage.latitude);
-        const lng = parseFloat(outage.longitude);
-        
-        if (!isNaN(lat) && !isNaN(lng)) {
-          bounds.extend([lng, lat]);
-          validMarkers++;
-        }
-      });
-
-      // Only fit bounds if we have valid markers
-      if (validMarkers > 0) {
-        map.current.fitBounds(bounds, { padding: 50 });
-      } else {
-        // If no valid markers, center on India
-        map.current.setCenter([78.9629, 22.5937]);
-        map.current.setZoom(4);
-      }
+  // Fit bounds to all markers if more than one
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+    if (outages.length > 1) {
+      const bounds = new window.google.maps.LatLngBounds();
+      outages.forEach(o => bounds.extend({ lat: o.lat, lng: o.lng }));
+      map.fitBounds(bounds, { padding: 50 });
     }
   }, [outages]);
 
-  if (error) {
+
+  // SVG path for a Google Maps-style pin
+  // This path is visually similar to the default Google pin
+  const PIN_PATH = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z";
+
+  const getMarkerIcon = (type) => ({
+    path: PIN_PATH,
+    fillColor: type === 'electricity' ? '#F59E0B' : '#4F46E5',
+    fillOpacity: 1,
+    strokeWeight: 2,
+    strokeColor: '#fff',
+    scale: 2.2, // visually similar to default pin size
+    anchor: new window.google.maps.Point(12, 24), // anchor at tip of pin
+  });
+
+
+  if (error || loadError) {
     return (
       <div className="bg-gray-100 rounded-lg h-[400px] flex items-center justify-center">
         <div className="text-center text-red-600">
-          <p>Error: {error}</p>
+          <p>Error: {error || loadError.message || 'Failed to load Google Maps'}</p>
         </div>
       </div>
     );
   }
+
+  // Custom map style to hide business POIs and make roads/areas more visible
+  const mapStyles = [
+    {
+      featureType: 'poi.business',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.attraction',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.government',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.medical',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.place_of_worship',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.school',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.sports_complex',
+      stylers: [{ visibility: 'off' }],
+    },
+    // You can add more style rules as needed
+  ];
 
   return (
     <div className="bg-gray-100 rounded-lg h-[400px] relative overflow-hidden">
@@ -177,7 +179,72 @@ export default function OutageMap() {
           </div>
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full" />
+      {!loading && outages.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="text-center text-gray-600">
+            <p className="text-lg font-semibold">No outages reported for this city.</p>
+            <p className="text-sm">Try selecting a different city or check back later.</p>
+          </div>
+        </div>
+      )}
+      {!loading && outages.length > 0 && isLoaded && (
+        <GoogleMap
+          mapContainerStyle={{ width: '100%', height: '400px' }}
+          center={center}
+          zoom={zoom}
+          onLoad={onMapLoad}
+          // Close info card if map is clicked and a marker is active
+          onClick={() => {
+            if (activeMarker !== null) setActiveMarker(null);
+          }}
+          options={{
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+            zoomControl: true,
+            gestureHandling: 'greedy',
+            styles: mapStyles,
+            clickableIcons: false, // Prevent default POI info windows
+          }}
+        >
+          {outages.map((outage) => (
+            <Marker
+              key={outage.id}
+              position={{ lat: outage.lat, lng: outage.lng }}
+              icon={getMarkerIcon(outage.type)}
+              onClick={e => {
+                // Prevent map onClick from firing
+                e.domEvent && e.domEvent.stopPropagation();
+                setActiveMarker(outage.id);
+              }}
+              onMouseOver={() => setActiveMarker(outage.id)}
+              onMouseOut={() => setActiveMarker(null)}
+            >
+              {activeMarker === outage.id && (
+                <InfoWindow
+                  position={{ lat: outage.lat, lng: outage.lng }}
+                  onCloseClick={() => setActiveMarker(null)}
+                  options={{
+                    pixelOffset: new window.google.maps.Size(0, -32),
+                    // Remove default padding/margin if needed
+                  }}
+                >
+                  <div style={{ minWidth: 180, padding: 0, margin: 0, lineHeight: 1.4 }}>
+                    <div style={{ fontWeight: 700, textTransform: 'capitalize', marginBottom: 2 }}>{outage.type}</div>
+                    {outage.description && (
+                      <div style={{ marginBottom: 2 }}>{outage.description}</div>
+                    )}
+                    {outage.locality && (
+                      <div style={{ fontSize: 13, color: '#555', marginBottom: 2 }}>Locality: {outage.locality}</div>
+                    )}
+                    <div style={{ fontSize: 12, color: '#888' }}>Reported: {new Date(outage.timestamp).toLocaleString()}</div>
+                  </div>
+                </InfoWindow>
+              )}
+            </Marker>
+          ))}
+        </GoogleMap>
+      )}
     </div>
   );
-} 
+}
