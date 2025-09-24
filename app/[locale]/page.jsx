@@ -16,6 +16,7 @@ import Header from "@/components/header"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { AuthModals } from "@/components/auth-modals"
+import { useTranslations } from 'next-intl';
 
 
 const nunito = Nunito({
@@ -25,6 +26,7 @@ const nunito = Nunito({
 })
 
 export default function LandingPage() {
+  const t = useTranslations();
   const router = useRouter()
   const searchParams = useSearchParams();
   const [location, setLocation] = useState("")
@@ -172,12 +174,12 @@ export default function LandingPage() {
             {/* Left Column - Text Content */}
             <div className="text-center lg:text-left" style={{ overflow: 'visible' }}>
               <h1 className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#1F2937] mb-6 ${nunito.className}`}>
-                <span className="text-[#4F46E5]">Report and Track</span>
+                <span className="text-[#4F46E5]">{t('homepage.heroTitle')}</span>
                 <br />
-                Local Outages
+                {t('homepage.heroSubtitle')}
               </h1>
               <p className="text-lg sm:text-xl lg:text-2xl text-gray-600 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Check and report electricity and water disruptions in your area.
+                {t('homepage.heroDescription')}
               </p>
 
 
@@ -218,7 +220,7 @@ export default function LandingPage() {
                   <div className="relative flex-1 location-input-group">
                     <Input
                       type="text"
-                      placeholder="Enter your city"
+                      placeholder={t('homepage.locationPlaceholder')}
                       className="border-0 focus:ring-0 text-base placeholder-gray-500 w-full bg-transparent pr-10"
                       value={location || ""}
                       onChange={(e) => {
@@ -281,7 +283,7 @@ export default function LandingPage() {
                     disabled={!selectedFromDropdown}
                     style={{ pointerEvents: !selectedFromDropdown ? 'none' : undefined }}
                   >
-                    Check
+                    {t('homepage.checkButton')}
                   </Button>
                 </div>
                 {/* Info Message */}

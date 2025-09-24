@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Menu, X, Home, Info, AlertTriangle, Mail, HelpCircle, User, LogOut } from "lucide-react";
 import { useMobileMenu } from "@/contexts/MobileMenuContext";
+import LanguageSelector from "@/components/language-selector";
+import { useTranslations } from 'next-intl';
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -15,6 +17,7 @@ const nunito = Nunito({
 });
 
 export default function Header({ currentPage = "home" }) {
+  const t = useTranslations('navigation');
   const { isAuthenticated, signOut, openLogIn, openSignUp } = useAuth();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -149,7 +152,7 @@ export default function Header({ currentPage = "home" }) {
                 currentPage === "home" ? "text-[#4F46E5] font-semibold" : "text-[#1F2937] hover:text-[#4F46E5]"
               }`}
             >
-              Home
+              {t('home')}
             </a>
             <a
               href="#"
@@ -161,7 +164,7 @@ export default function Header({ currentPage = "home" }) {
                 currentPage === "about" ? "text-[#4F46E5] font-semibold" : "text-[#1F2937] hover:text-[#4F46E5]"
               }`}
             >
-              About
+              {t('about')}
             </a>
             <a
               href="#"
@@ -178,7 +181,7 @@ export default function Header({ currentPage = "home" }) {
                 currentPage === "report" ? "text-[#4F46E5] font-semibold" : "text-[#1F2937] hover:text-[#4F46E5]"
               }`}
             >
-              Report Outage
+              {t('reportOutage')}
             </a>
             <a
               href="#"
@@ -190,7 +193,7 @@ export default function Header({ currentPage = "home" }) {
                 currentPage === "contact" ? "text-[#4F46E5] font-semibold" : "text-[#1F2937] hover:text-[#4F46E5]"
               }`}
             >
-              Contact Us
+              {t('contact')}
             </a>
             <a
               href="#"
@@ -202,12 +205,13 @@ export default function Header({ currentPage = "home" }) {
                 currentPage === "faqs" ? "text-[#4F46E5] font-semibold" : "text-[#1F2937] hover:text-[#4F46E5]"
               }`}
             >
-              FAQs
+              {t('faqs')}
             </a>
           </nav>
 
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-2 sm:space-x-3">
+            <LanguageSelector />
             {isAuthenticated ? (
               <>
                 {currentPage !== "dashboard" && (
@@ -216,7 +220,7 @@ export default function Header({ currentPage = "home" }) {
                     variant="ghost"
                     className="text-[#1F2937] hover:bg-gray-100"
                   >
-                    Dashboard
+                    {t('dashboard')}
                   </Button>
                 )}
                 <Button
@@ -224,7 +228,7 @@ export default function Header({ currentPage = "home" }) {
                   variant="outline"
                   className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
-                  Log Out
+                  {t('logout')}
                 </Button>
               </>
             ) : (
@@ -234,13 +238,13 @@ export default function Header({ currentPage = "home" }) {
                   onClick={openSignUp}
                   className="border-[#1F2937] text-[#1F2937] hover:bg-[#1F2937] hover:text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
-                  Sign Up
+                  {t('signup')}
                 </Button>
                 <Button
                   onClick={openLogIn}
                   className="bg-[#4F46E5] hover:bg-[#4F46E5]/90 text-white text-sm px-3 py-2 sm:px-4 sm:py-2"
                 >
-                  Log In
+                  {t('login')}
                 </Button>
               </>
             )}
