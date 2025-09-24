@@ -301,7 +301,7 @@ export default function LandingPage() {
                     onClick={() => router.push('/dashboard')}
                     className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white px-8 py-3 text-lg font-semibold h-auto"
                   >
-                    Go to Dashboard
+                    {t('homepage.dashboardButton')}
                   </Button>
                 </div>
               ) : (
@@ -310,7 +310,7 @@ export default function LandingPage() {
                     onClick={openSignUp}
                     className="bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white px-8 py-3 text-lg font-semibold h-auto"
                   >
-                    Get Started Free
+                    {t('homepage.getStartedButton')}
                   </Button>
                 </div>
               )}

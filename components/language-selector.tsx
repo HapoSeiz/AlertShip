@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, usePathname } from "next/navigation";
-import { locales } from "@/i18n";
+import { locales } from "@/i18n/request";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Globe } from "lucide-react";
 

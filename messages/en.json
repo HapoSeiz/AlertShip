@@ -40,7 +40,9 @@
     "getLocationButton": "Get My Location",
     "gettingLocationText": "Getting...",
     "watchOutagesButton": "Watch Live Outages",
-    "reportOutageButton": "Report an Outage"
+    "reportOutageButton": "Report an Outage",
+    "dashboardButton": "Go to Dashboard",
+    "getStartedButton": "Get Started Free"
   },
   "howItWorks": {
     "title": "How It Works",

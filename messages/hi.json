@@ -40,7 +40,9 @@
     "getLocationButton": "मेरा स्थान प्राप्त करें",
     "gettingLocationText": "प्राप्त कर रहे हैं...",
     "watchOutagesButton": "लाइव आपूर्ति बाधा देखें",
-    "reportOutageButton": "आपूर्ति बाधा रिपोर्ट करें"
+    "reportOutageButton": "आपूर्ति बाधा रिपोर्ट करें",
+    "dashboardButton": "डैशबोर्ड पर जाएं",
+    "getStartedButton": "निःशुल्क शुरू करें"
   },
   "howItWorks": {
     "title": "यह कैसे काम करता है",

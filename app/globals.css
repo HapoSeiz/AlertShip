@@ -1,4 +1,14 @@
 @import 'nprogress/nprogress.css';
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Oriya:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100..900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -77,4 +87,105 @@
 }
 #nprogress .spinner {
   display: none !important;
+}
+
+/* Language-specific font families */
+html[lang="hi"],
+html[lang="mr"],
+html[lang="ne"],
+html[lang="sa"],
+html[lang="mai"] {
+  font-family: 'Noto Sans Devanagari', sans-serif;
+}
+
+html[lang="bn"],
+html[lang="as"] {
+  font-family: 'Noto Sans Bengali', sans-serif;
+}
+
+html[lang="ta"] {
+  font-family: 'Noto Sans Tamil', sans-serif;
+}
+
+html[lang="te"] {
+  font-family: 'Noto Sans Telugu', sans-serif;
+}
+
+html[lang="gu"] {
+  font-family: 'Noto Sans Gujarati', sans-serif;
+}
+
+html[lang="kn"] {
+  font-family: 'Noto Sans Kannada', sans-serif;
+}
+
+html[lang="ml"] {
+  font-family: 'Noto Sans Malayalam', sans-serif;
+}
+
+html[lang="or"] {
+  font-family: 'Noto Sans Oriya', sans-serif;
+}
+
+html[lang="pa"] {
+  font-family: 'Noto Sans Gurmukhi', sans-serif;
+}
+
+html[lang="ur"],
+html[lang="ks"] {
+  font-family: 'Noto Sans Arabic', sans-serif;
+}
+
+/* RTL support for Urdu and other RTL languages */
+html[dir="rtl"] {
+  direction: rtl;
+}
+
+html[dir="rtl"] body {
+  text-align: right;
+}
+
+html[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Language fallbacks */
+.font-devanagari {
+  font-family: 'Noto Sans Devanagari', sans-serif;
+}
+
+.font-bengali {
+  font-family: 'Noto Sans Bengali', sans-serif;
+}
+
+.font-tamil {
+  font-family: 'Noto Sans Tamil', sans-serif;
+}
+
+.font-telugu {
+  font-family: 'Noto Sans Telugu', sans-serif;
+}
+
+.font-gujarati {
+  font-family: 'Noto Sans Gujarati', sans-serif;
+}
+
+.font-kannada {
+  font-family: 'Noto Sans Kannada', sans-serif;
+}
+
+.font-malayalam {
+  font-family: 'Noto Sans Malayalam', sans-serif;
+}
+
+.font-oriya {
+  font-family: 'Noto Sans Oriya', sans-serif;
+}
+
+.font-gurmukhi {
+  font-family: 'Noto Sans Gurmukhi', sans-serif;
+}
+
+.font-arabic {
+  font-family: 'Noto Sans Arabic', sans-serif;
 }

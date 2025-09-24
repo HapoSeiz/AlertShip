@@ -6,8 +6,6 @@ import { GooglePlacesProvider } from '@/contexts/GooglePlacesContext';
 import NProgressProvider from "@/components/nprogress-provider";
 import BackToTop from "@/components/back-to-top";
 import { MobileMenuProvider } from "@/contexts/MobileMenuContext";
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -21,34 +19,26 @@ export const metadata: Metadata = {
   generator: 'v0.dev',
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-  params: { locale }
 }: {
   children: React.ReactNode
-  params: { locale: string }
 }) {
-  // Providing all messages to the client
-  // side is the easiest way to get started
-  const messages = await getMessages();
-
   return (
-    <html lang={locale || 'en'} className={playfair.variable} dir={locale === 'ur' ? 'rtl' : 'ltr'}>
+    <html className={playfair.variable}>
       <head>
         <link rel="icon" type="image/png" href="/alertshipfinallogo.png" />
       </head>
       <body>
-        <NextIntlClientProvider messages={messages}>
-          <AuthProvider>
-            <GooglePlacesProvider>
-              <MobileMenuProvider>
-                <NProgressProvider />
-                {children}
-                <BackToTop />
-              </MobileMenuProvider>
-            </GooglePlacesProvider>
-          </AuthProvider>
-        </NextIntlClientProvider>
+        <AuthProvider>
+          <GooglePlacesProvider>
+            <MobileMenuProvider>
+              <NProgressProvider />
+              {children}
+              <BackToTop />
+            </MobileMenuProvider>
+          </GooglePlacesProvider>
+        </AuthProvider>
       </body>
     </html>
   )
