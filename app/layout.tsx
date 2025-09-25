@@ -23,13 +23,7 @@ export default function RootLayout({
         <link rel="icon" type="image/png" href="/alertshipfinallogo.png" />
       </head>
       <body>
-        <GooglePlacesProvider>
-          <MobileMenuProvider>
-            <NProgressProvider />
-            {children}
-            <BackToTop />
-          </MobileMenuProvider>
-        </GooglePlacesProvider>
+        {children}
       </body>
     </html>
   )
