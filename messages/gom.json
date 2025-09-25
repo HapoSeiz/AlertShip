@@ -1,0 +1,75 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "search": "Search",
+    "clear": "Clear"
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact Us", 
+    "faqs": "FAQs",
+    "reportOutage": "Report Outage",
+    "dashboard": "Dashboard",
+    "login": "Log In",
+    "logout": "Log Out",
+    "signup": "Sign Up"
+  },
+  "header": {
+    "mobileMenuAria": "Toggle mobile menu"
+  },
+  "homepage": {
+    "heroTitle": "Report and Track",
+    "heroSubtitle": "Local Outages",
+    "heroDescription": "Stay informed about electricity and water outages in your area. Get real-time alerts and report issues instantly.",
+    "locationPlaceholder": "Enter your city",
+    "checkButton": "Check",
+    "locationInfoMessage": "Click the location icon for automatic fetching or enter at least 5 characters to search.",
+    "getLocationButton": "Get My Location",
+    "gettingLocationText": "Getting...",
+    "watchOutagesButton": "Watch Live Outages",
+    "reportOutageButton": "Report an Outage"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "No Sign Up Required. 100% Free.",
+    "step1": "Enter your location.",
+    "step2": "View Outage Map",
+    "step3": "Submit Report*",
+    "checkNowButton": "Check Now!",
+    "disclaimer": "*Sign-in required for report submission."
+  },
+  "aboutPage": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Find answers to common questions about AlertShip and how to stay informed about utility outages.",
+    "howWeHelpTitle": "How We Help",
+    "valuesTitle": "Our Values",
+    "teamTitle": "Meet Our Team",
+    "smartAlertsTitle": "Smart Alerts",
+    "smartAlertsDescription": "Get personalized notifications via browser, WhatsApp, or email. Stay informed about outages and scheduled maintenance in your area.",
+    "privacyFirstTitle": "Privacy First",
+    "privacyFirstDescription": "Your data is yours. We collect only what's necessary to provide our service and never sell personal information."
+  },
+  "faqs": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Find answers to common questions about AlertShip and how to stay informed about utility outages.",
+    "howToReportTitle": "How do I report an outage?",
+    "howToReportDescription": "To report an outage, simply click the \"Report Outage\" button in the navigation menu or on the homepage. You'll need to create an account or log in first. Then fill out the form with details about the outage including the type (electricity or water), location, and description."
+  },
+  "language": {
+    "selector": "Language",
+    "current": "Konkani"
+  }
+}
