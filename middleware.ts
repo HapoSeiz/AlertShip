@@ -41,5 +41,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/(hi|bn|te|mr|ta|ur|gu|kn|ml|or|pa|as|mai|sa|sat|ks|ne|sd|gom|mni|doi|brx)/:path*', '/dashboard/:path*', '/report/:path*'],
+  matcher: ['/', '/(en|hi|bn|te|mr|ta|ur|gu|kn|ml|or|pa|as|mai|sa|sat|ks|ne|sd|gom|mni|doi|brx)/:path*', '/dashboard/:path*', '/report/:path*'],
 };

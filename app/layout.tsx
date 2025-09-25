@@ -1,17 +1,10 @@
 import type { Metadata } from 'next'
-import { Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { GooglePlacesProvider } from '@/contexts/GooglePlacesContext';
 import NProgressProvider from "@/components/nprogress-provider";
 import BackToTop from "@/components/back-to-top";
 import { MobileMenuProvider } from "@/contexts/MobileMenuContext";
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-playfair',
-})
 
 export const metadata: Metadata = {
   title: 'AlertShip',
@@ -25,20 +18,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html className={playfair.variable}>
+    <html>
       <head>
         <link rel="icon" type="image/png" href="/alertshipfinallogo.png" />
       </head>
       <body>
-        <AuthProvider>
-          <GooglePlacesProvider>
-            <MobileMenuProvider>
-              <NProgressProvider />
-              {children}
-              <BackToTop />
-            </MobileMenuProvider>
-          </GooglePlacesProvider>
-        </AuthProvider>
+        <GooglePlacesProvider>
+          <MobileMenuProvider>
+            <NProgressProvider />
+            {children}
+            <BackToTop />
+          </MobileMenuProvider>
+        </GooglePlacesProvider>
       </body>
     </html>
   )
